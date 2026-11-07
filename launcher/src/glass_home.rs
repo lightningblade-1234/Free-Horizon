@@ -100,6 +100,7 @@ impl Launcher {
             .child(self.edition_tabs(java.is_some(), cx))
             .child(self.home_title(cx))
             .child(self.played_text(cx))
+            .child(self.player_name_field(cx).mt(px(20.)))
             .child(actions)
     }
 
@@ -417,7 +418,7 @@ impl Launcher {
                     Some(_) => (tr("Update"), "download-04"),
                     None => (tr("Play"), "play"),
                 };
-                let press = play_press(ready, self.owner, false);
+                let press = play_press(ready, false);
                 let main = body(label.into(), icon).id("play").cursor_pointer();
                 let main = match (&update, press) {
                     (Some(_), _) => main.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -434,8 +435,7 @@ impl Launcher {
                     (None, PlayPress::PrepareThenPlay) => {
                         main.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.picker_open = false;
-                            this.play_when_prepared = this.selected().cloned();
-                            this.prepare(backend::MinecraftFrom::Install);
+                            this.play();
                             cx.notify();
                         }))
                     }
@@ -528,7 +528,7 @@ impl Launcher {
                     item.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.home_menu = HomeMenu::None;
                         match what {
-                            PlayItem::Prepare => this.prepare(backend::MinecraftFrom::Install),
+                            PlayItem::Prepare => this.prepare(backend::MinecraftFrom::Local),
                             PlayItem::Play => this.play(),
                             PlayItem::Shortcut => {
                                 if let Some((id, name)) = id.clone() {

@@ -213,9 +213,7 @@ pub fn component_tag(v: &crate::server::json::Json) -> horizon_world::nbt::Tag {
 }
 
 /// StringUtil.isValidPlayerName.
-pub fn valid_name(name: &str) -> bool {
-    (1..=16).contains(&name.len()) && name.chars().all(|c| c as u32 > 32 && (c as u32) < 127)
-}
+pub use horizon_core::player_name::is_valid as valid_name;
 
 thread_local! {
     static HOLDING: Cell<bool> = const { Cell::new(false) };

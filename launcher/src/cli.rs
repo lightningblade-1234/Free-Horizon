@@ -1444,7 +1444,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let from = if download {
                 backend::MinecraftFrom::Mojang
             } else {
-                backend::MinecraftFrom::Install
+                backend::MinecraftFrom::Local
             };
             let (preparer, minecraft) =
                 backend::preparer(&tag, &minecraft, from, &|line| eprintln!("{line}"))?;
@@ -3721,6 +3721,17 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    #[test]
+    fn no_arguments_open_the_normal_window() {
+        assert!(Cli::try_parse_from(["horizon-launcher"])
+            .unwrap()
+            .command
+            .is_none());
+        assert!(Cli::try_parse_from(["horizon-launcher", "--local"]).is_err());
+        let play = Cli::try_parse_from(["horizon-launcher", "play"]).unwrap();
+        assert!(matches!(play.command, Some(Cmd::Play { .. })));
+    }
 
     #[test]
     fn completions_cover_each_shell_and_nested_commands() {

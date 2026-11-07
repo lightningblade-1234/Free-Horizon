@@ -7,19 +7,7 @@ use horizon_launcher::account::Player;
 impl Launcher {
     /// The chip's two lines: the name that plays, and how.
     pub(super) fn who_plays(&self) -> (String, &'static str) {
-        match self.accounts.player() {
-            Player::Microsoft(_) => (
-                self.accounts
-                    .selected()
-                    .map_or_else(String::new, |a| a.name.clone()),
-                tr("Microsoft account"),
-            ),
-            Player::Offline(name) => (name, tr("Offline")),
-            Player::GameName => (
-                self.offline_name.clone().unwrap_or_else(|| "Player".into()),
-                tr("Offline"),
-            ),
-        }
+        (self.player_name_input.text().to_string(), tr("Offline"))
     }
 
     pub(super) fn play_as(&mut self, who: Player) {

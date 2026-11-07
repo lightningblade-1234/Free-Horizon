@@ -54,6 +54,18 @@ The account the game joins online-mode servers with ([microsoft-account.md](../m
 - A session the game can't read is reported on stderr (`Horizon: not signed in: …`), and online-mode servers
   will refuse the player.
 
+### Same-tree local offline CLI
+
+The personal fork's normal Home/Play interface ([launcher README](../../launcher/README.md#personal-fork-offline-play))
+uses this checkout's existing `--name NAME` CLI option with prepared local resources and no session.
+The actual parser in `crates/horizon-client/src/game.rs` accepts it; a parser test covers that invocation.
+Without a session the game uses its real offline name/UUID initialization, without Microsoft authentication.
+
+`--name` is **not** in `game/launch_api.rs::OPTIONS` or the `--launch-api` reply. This is a same-source-tree
+CLI contract, not an addition to the promised external Launch API. Advertising it externally would require
+adding its semantics to that contract and updating the generated reference and API version/tests. The game's
+parser also accepts other local/development options beyond the advertised subset; unknown options are refused.
+
 ## Preparing
 
 `horizon-prepare` turns the player's own Minecraft files into the resources `horizon-client --resources` reads. It

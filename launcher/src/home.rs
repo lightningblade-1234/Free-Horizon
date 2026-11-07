@@ -7,6 +7,74 @@ use crate::shell::{action, c, label, Action};
 use theme::night;
 
 impl Launcher {
+    /// A native name field in the existing Home banner, using the same editor as other fields.
+    pub(super) fn player_name_field(&self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let focused = self.player_name_focused;
+        let invalid = backend::validate_local_name(self.player_name_input.text()).err();
+        let field = if t.glass {
+            glass_ui::field(focused, invalid.is_some())
+        } else {
+            div()
+                .flex()
+                .items_center()
+                .h(px(theme::FIELD))
+                .px(px(12.))
+                .rounded(px(theme::RADIUS))
+                .bg(t.surface)
+                .border_1()
+                .border_color(if invalid.is_some() {
+                    t.danger
+                } else if focused {
+                    t.accent
+                } else {
+                    t.rule
+                })
+        };
+        let field = field
+            .id("local-player-name")
+            .track_focus(&self.player_name_focus)
+            .w_full()
+            .max_w(px(360.))
+            .cursor_text()
+            .child(line_edit::content(
+                &self.player_name_input,
+                &t,
+                focused,
+                false,
+                false,
+                tr("Offline name"),
+            ))
+            .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                window.focus(&this.player_name_focus, cx);
+                cx.notify();
+            }))
+            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
+                match line_edit::handle(&mut this.player_name_input, ev, cx) {
+                    line_edit::Key::Pass => return,
+                    line_edit::Key::Enter => this.play(),
+                    line_edit::Key::Escape => window.blur(cx),
+                    line_edit::Key::Edited => {
+                        this.settings.local_player_name = this.player_name_input.text().to_string();
+                        this.save_settings();
+                        this.client_error = None;
+                    }
+                    _ => {}
+                }
+                cx.stop_propagation();
+                cx.notify();
+            }));
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(6.))
+            .child(shell::text(night::UI, t.ink).child(tr("Offline name")))
+            .child(line_edit::mouse(field, cx, |this| {
+                &mut this.player_name_input
+            }))
+            .children(invalid.map(|error| shell::text(night::CAPTION, t.danger).child(error)))
+    }
+
     /// The focal point: what will start and its state, the instance's name, when it was played,
     /// and an update when one waits. No `tag`: a Java instance's Minecraft (`game` then names its
     /// loader too).
@@ -243,7 +311,7 @@ impl Launcher {
             .child(label(
                 tr(if running { "Running" } else { "Play" }).to_string(),
             ));
-        match play_press(ready, self.owner, self.preparing || running) {
+        match play_press(ready, self.preparing || running) {
             PlayPress::Nothing => play = disabled(play),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -255,8 +323,7 @@ impl Launcher {
             PlayPress::PrepareThenPlay => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.picker_open = false;
-                    this.play_when_prepared = this.selected().cloned();
-                    this.prepare(backend::MinecraftFrom::Install);
+                    this.play();
                     cx.notify();
                 }))
             }

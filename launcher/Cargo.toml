@@ -115,3 +115,8 @@ syn = "2"
 
 [profile.release]
 strip = true
+
+# Embed DirectX shaders in local Windows builds too. GPUI's debug shader loader reads
+# Cargo source/build-cache paths at runtime, which disappear when those caches are cleared.
+[profile.dev.package.gpui-fast-windows]
+debug-assertions = false
