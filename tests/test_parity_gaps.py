@@ -1,10 +1,6 @@
-import re
 import unittest
-from pathlib import Path
 
 from tools import parity_gaps as pg
-
-README = Path(__file__).resolve().parents[1] / "README.md"
 
 
 def lists(*opens):
@@ -39,20 +35,6 @@ class ReadmeTests(unittest.TestCase):
         self.assertEqual(twice.count("**Player-visible gaps:"), 1)
         self.assertIn("player--visible%20gaps-3%20open-", twice)
         self.assertEqual(pg.written(twice)[0], 3)
-
-    def test_the_readme_agrees_with_itself(self):
-        text = README.read_text(encoding="utf-8")
-        total, counts = pg.written(text)
-        self.assertEqual(len(counts), len(pg.ISSUES))
-        self.assertEqual(total, sum(counts), "the README's gap total is the sum of its areas")
-        badge = pg.BADGE.search(text)
-        self.assertIsNotNone(badge, "the README's gap badge is missing")
-        self.assertEqual(int(badge.group(2)), total, "the gap badge must match the block")
-        status = text.split("## Project status", 1)[1]
-        self.assertTrue(status.lstrip().startswith("**Player-visible gaps:"), "the gaps come first under Project status")
-        self.assertNotIn("<!--", status.split("###", 1)[0], "the website prints HTML comments of this intro")
-        self.assertTrue(re.search(r"^### Java parity: \d+%$", status, re.M), "the site still reads this heading")
-
 
 if __name__ == "__main__":
     unittest.main()

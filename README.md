@@ -81,6 +81,8 @@ This identity supports **single-player, LAN and offline-mode servers**. Online-m
 
 The **Offline launcher release** workflow builds on relevant pushes to this fork's `main`. It can also be started from **Actions → Offline launcher release → Run workflow**. This builds/publishes the launcher; it does not automatically merge upstream source changes.
 
+This fork keeps **checks** (Python tooling, formatting, lint and Rust tests) and **Offline launcher release** enabled. Inherited upstream service/release automations are disabled here because their private runners, signing keys and project services are not part of this fork. Parity harnesses remain available for local development; those disabled workflows do not constitute a vanilla parity run.
+
 ## Files and troubleshooting
 
 | What | Default Windows location |
