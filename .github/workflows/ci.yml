@@ -13,6 +13,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      source_only:
+        description: Run source and launcher checks without optional private-runner/ARM64 jobs
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -165,7 +170,7 @@ jobs:
   # 90-minute job. The Nightly and launcher releases build and check these binaries on every run.
   windows-arm64:
     name: Windows ARM64 game and launcher
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.source_only
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 90
     env:
@@ -298,7 +303,7 @@ jobs:
   # game directory in HORIZON_MINECRAFT_DIR and the pinned server jar in
   # HORIZON_SERVER_JAR. Start them by hand: gh workflow run checks --ref <branch>.
   vanilla-parity:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.source_only
     runs-on: [self-hosted, linux, horizon-game]
     steps:
       - uses: actions/checkout@v7
@@ -646,7 +651,7 @@ jobs:
           RUSTUP_TOOLCHAIN: stable
         run: python tools/test_float_log_parity.py
   jfr-analysis:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.source_only
     runs-on: [self-hosted, linux, horizon-game]
     steps:
       - uses: actions/checkout@v7

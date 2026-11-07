@@ -79,9 +79,13 @@ This identity supports **single-player, LAN and offline-mode servers**. Online-m
 - **Source checkout:** run `git pull --ff-only` on `main`, then repeat the setup command.
 - **Game builds:** use the normal launcher's version picker and update controls.
 
-The **Offline launcher release** workflow builds on relevant pushes to this fork's `main`. It can also be started from **Actions → Offline launcher release → Run workflow**. This builds/publishes the launcher; it does not automatically merge upstream source changes.
+The **Offline launcher release** workflow builds on relevant pushes to this fork's `main`. It can also be started from **Actions → Offline launcher release → Run workflow**.
 
-This fork keeps **checks** (Python tooling, formatting, lint and Rust tests) and **Offline launcher release** enabled. Inherited upstream service/release automations are disabled here because their private runners, signing keys and project services are not part of this fork. Parity harnesses remain available for local development; those disabled workflows do not constitute a vanilla parity run.
+**Sync upstream** checks `horizon-rust/horizon`'s `main` every 15 minutes and can also be run manually from Actions. It merges and pushes new commits only when Git reports no conflicts. If there are conflicts, the fork is left unchanged and the workflow summary lists the files to resolve. It never force-pushes. Scheduled runs can be delayed by GitHub.
+
+After a successful sync, it explicitly starts **checks**, plus a launcher release build when launcher/dependency inputs changed. These checks catch compilation/behavior failures that a clean Git merge cannot detect. Pull the updated fork locally and rerun source setup to rebuild your own executable.
+
+This fork keeps **Sync upstream**, **checks** (Python tooling, formatting, lint and Rust tests) and **Offline launcher release** enabled. Inherited upstream service/release automations are disabled here because their private runners, signing keys and project services are not part of this fork. Parity harnesses remain available for local development; those disabled workflows do not constitute a vanilla parity run.
 
 ## Files and troubleshooting
 

@@ -1,0 +1,47 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository_owner == 'lightningblade-1234' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Configure automated merge identity and public-tree hooks
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config core.hooksPath .githooks
+      - name: Merge and push only without conflicts
+        id: merge
+        run: python tools/sync_upstream.py
+      # Pushes with GITHUB_TOKEN do not trigger other push workflows. Dispatch explicitly.
+      - name: Start source checks after an update
+        if: steps.merge.outputs.status == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref main -f source_only=true
+      - name: Build a fork launcher release when its inputs changed
+        if: steps.merge.outputs.status == 'updated' && steps.merge.outputs.launcher_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run offline-launcher.yml --ref main
