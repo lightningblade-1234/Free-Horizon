@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://playhorizon.dev"><b>Website</b></a> ·
+  <a href="#offline-fork-setup-windows"><b>Offline fork setup</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="https://playhorizon.dev/docs/"><b>Docs</b></a> ·
   <a href="https://discord.gg/playhorizon"><b>Discord</b></a> ·
@@ -19,6 +20,8 @@
 # Horizon
 
 **Minecraft: Java Edition 26.3, rewritten in Rust.** Your worlds, the same rules and the same terrain as the Java game, checked against it by hundreds of differential tests, in one native program with no Java. Free, open source (MIT) and unofficial: you play it with your own copy of Java Edition.
+
+**This repository is [lightningblade-1234's offline-play fork](https://github.com/lightningblade-1234/horizon).** Its normal launcher lets you enter a player name and press Play without Microsoft login. Follow the [fork setup guide](#offline-fork-setup-windows) below; the upstream downloads have a different account flow.
 
 <p align="center">
   <img src="docs/media/readme/valley.webp" alt="A river valley with a plains village, savanna hills and a cherry grove, seen from above with a long view distance" width="100%">
@@ -61,7 +64,116 @@ Everything below is in the current release.
 
 "Vanilla + mods" is Sodium, Lithium, FerriteCore and ImmediatelyFast. Horizon reaches the title screen in 2.9–3.2 s against vanilla's 7.5–7.7 s (the modded client's 10.8–11.1 s), loads a scene's chunks 2.9–3.8 times faster, and playing holds a steady working set of 1.1–1.7 GB against 1.9–2.9 GB. Every scene with its confidence interval and the run's load log: [the 2026-10-29 reports](benchmarks/perf/windows-9800x3d-5080-2026-10-29.md). Method, and how to measure your own machine: [docs/benchmark.md](docs/benchmark.md). [playhorizon.dev/benchmarks](https://playhorizon.dev/benchmarks) puts these runs beside a 2016 laptop, a Mac mini and a gaming desktop.
 
+## Offline fork setup (Windows)
+
+This guide applies to this fork's **`main` branch**, using Minecraft **26.3** resources and Rust **1.95.0**. The existing Home/Play interface, version picker, Minecraft discovery, instance folders, Console and crash handling are used throughout.
+
+### Already set up on this computer
+
+Open the compiled launcher directly:
+
+```powershell
+& "C:\Users\shree\Desktop\freerustminecraft\horizon\launcher\target\debug\horizon-launcher.exe"
+```
+
+Enter your name in **Offline name**, then press **Play**. This computer already has a verified server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` and a prepared Horizon installation with sounds. There is no `--local` flag or separate offline page.
+
+### 1. Install the build prerequisites
+
+- Git and [Rust through rustup](https://rustup.rs/).
+- Visual Studio Build Tools with the **Desktop development with C++** workload and a Windows SDK. The SDK's `fxc.exe` compiles the launcher's embedded DirectX shaders; `GPUI_FXC_PATH` can select it explicitly if discovery fails.
+- A local **Java 25 JDK** for resource preparation. On the configured computer it is `C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot`. Java is used during preparation; the prepared game runs in Rust.
+
+### 2. Build this fork's launcher
+
+For a fresh checkout, run these commands in PowerShell:
+
+```powershell
+git clone --branch main https://github.com/lightningblade-1234/horizon.git
+Set-Location horizon
+rustup toolchain install 1.95.0
+
+$env:CARGO_INCREMENTAL = '0'
+$env:CARGO_PROFILE_DEV_DEBUG = '0'
+$env:CARGO_BUILD_JOBS = '4'
+cargo +1.95.0 build --manifest-path launcher/Cargo.toml --locked
+```
+
+These settings reduce build-cache size and memory pressure. The resulting executable is `launcher\target\debug\horizon-launcher.exe`. Windows shaders are embedded, so that executable can run after disposable Cargo build caches are removed.
+
+### 3. Provide Minecraft 26.3's local files
+
+The launcher discovers an existing Minecraft install. In the usual Windows layout, preparation needs:
+
+```text
+%APPDATA%\.minecraft\versions\26.3\26.3.jar
+%APPDATA%\.minecraft\versions\26.3\26.3.json
+%APPDATA%\.minecraft\libraries\
+%APPDATA%\.minecraft\assets\
+```
+
+Use the launcher's **Minecraft folder** chooser if discovery selects the wrong folder. The JAR and version JSON must match the selected Horizon build's pins; files from another Minecraft version will not work. Minecraft files and prepared resources are not included in this repository.
+
+Preparation also needs the genuine **26.3 server JAR** to export server-side game data used by single player. Its official download is listed as `downloads.server.url` in the local `26.3.json`. For this version, the following one-time setup command downloads it into the launcher's default cache and verifies the pinned checksum:
+
+```powershell
+$serverJar = Join-Path $env:APPDATA 'horizon-launcher\server-jars\26.3.jar'
+New-Item -ItemType Directory -Force (Split-Path $serverJar) | Out-Null
+Invoke-WebRequest -UseBasicParsing `
+    -Uri 'https://piston-data.mojang.com/v1/objects/33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c/server.jar' `
+    -OutFile "$serverJar.partial"
+$expected = '33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c'
+if ((Get-FileHash "$serverJar.partial" -Algorithm SHA1).Hash.ToLowerInvariant() -ne $expected) {
+    throw 'The downloaded server JAR does not match Minecraft 26.3.'
+}
+Move-Item "$serverJar.partial" $serverJar -Force
+```
+
+If you already have the verified JAR elsewhere, set `$env:HORIZON_SERVER_JAR = 'C:\your\path\server.jar'` before opening the launcher. The server JAR is a preparation input; ordinary Play does not start a Java server.
+
+### 4. Open Home and play offline
+
+From the checkout folder:
+
+```powershell
+# Adjust JAVA_HOME if your JDK is installed elsewhere.
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot'
+$env:HORIZON_LAUNCHER_NO_SELF_UPDATE = '1'
+& .\launcher\target\debug\horizon-launcher.exe
+```
+
+1. Use **Versions** to select/install a Horizon game build if none is installed. Building the launcher alone does not install the game.
+2. In **Home**, enter an offline name: **1–16 printable ASCII characters, without spaces or control characters**. The launcher remembers it. Keep the same spelling and capitalization to keep the same offline UUID.
+3. Click **Play**. If needed, the existing preparer uses your local Minecraft files, server JAR and Java to prepare the selected build. Missing inputs appear as errors; offline Play does not authenticate or fall back to downloading Mojang files.
+4. In the game, choose **Singleplayer** and create or open a world. LAN and offline-mode servers also support this identity; online-mode servers require an authenticated account.
+
+The first resource preparation takes longer than later launches. Progress and game output are available in the existing **Console**. The launcher stays running and displays startup failures and crash reports.
+
+`HORIZON_LAUNCHER_NO_SELF_UPDATE=1` prevents a fork release build from replacing itself with an upstream launcher. Development builds already disable launcher self-updates. Game versions are still managed through the normal launcher interface.
+
+### Files, updates and troubleshooting
+
+Default Windows locations:
+
+| What | Location |
+| --- | --- |
+| Launcher settings and remembered name | `%APPDATA%\horizon-launcher\settings.json` |
+| Installed game builds and prepared resources | `%APPDATA%\horizon-launcher\versions\<tag>\` |
+| Server JAR cache | `%APPDATA%\horizon-launcher\server-jars\26.3.jar` |
+| Default game folder | `%APPDATA%\horizon\` |
+
+Each instance can have its own game folder; Home's **Folder** control opens the selected one. Custom data locations and `HORIZON_LAUNCHER_HOME` / `HORIZON_HOME` overrides change these defaults.
+
+- **Missing resources or server JAR:** check the paths above, then use Play or Prepare again. Local inputs must match that build's version.
+- **An older launcher fails after cache cleanup:** rebuild from current `main`; the embedded-shader fix removes the Windows debug launcher's runtime dependency on shader files in Cargo caches.
+- **Extra arguments rejected:** remove `--name`, `--session-file` and `--session-stdin` from extra game arguments. Home supplies the offline name.
+- **Update the checkout:** run `git pull --ff-only` on `main`, then repeat the launcher build command. Pulling source changes alone does not rebuild the executable.
+
+Further details: [this fork's launcher documentation](launcher/README.md#personal-fork-offline-play). The game's parser accepts `--name`, but it is not an advertised external Launch API option.
+
 ## Download
+
+**The downloads below are upstream releases.** For this fork's offline launcher, use the [setup guide above](#offline-fork-setup-windows).
 
 Get **the Horizon launcher** from [playhorizon.dev](https://playhorizon.dev), or from [the launcher releases](https://github.com/horizon-rust/horizon/releases?q=launcher&expanded=true):
 
@@ -73,7 +185,7 @@ Get **the Horizon launcher** from [playhorizon.dev](https://playhorizon.dev), or
 | macOS, Intel | `horizon-launcher-macos-x64.dmg` | macOS 12 or later |
 | Linux x86-64 | `horizon-launcher-linux-x86_64.AppImage` or `.tar.gz` | a glibc distribution, X11 or Wayland, a GPU with Vulkan or OpenGL 3.3 |
 
-**You also need a Microsoft account that owns Minecraft: Java Edition.** You sign in with it in the launcher, which plays only with an account that owns the game ([why](docs/microsoft-account.md)). Horizon contains no Minecraft code or assets: an existing install (official launcher, Prism, MultiMC...) is reused, and without one the launcher downloads 26.3 from Mojang for your account. Step by step: [Install and first launch](https://playhorizon.dev/docs/install).
+**The upstream launcher requires a Microsoft account that owns Minecraft: Java Edition.** You sign in with it in that launcher, which plays only with an account that owns the game ([why](docs/microsoft-account.md)). Horizon contains no Minecraft code or assets: an existing install (official launcher, Prism, MultiMC...) is reused, and without one the upstream launcher downloads 26.3 from Mojang for your account. Step by step for upstream releases: [Install and first launch](https://playhorizon.dev/docs/install). This fork's normal offline Home/Play flow uses the local files described above.
 
 <table>
   <tr>
