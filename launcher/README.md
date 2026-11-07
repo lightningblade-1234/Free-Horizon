@@ -25,6 +25,10 @@ The existing Home/Play interface now launches Horizon offline by default. The se
 window has been removed. Microsoft account tools remain available in Settings and the CLI, but
 Home's startup and Horizon Play never inspect credentials, renew tokens or require an owner.
 
+Local Windows builds embed the launcher's DirectX shaders, so the built executable continues to
+work after Cargo caches are cleared. Building requires the Windows SDK's `fxc.exe` (found
+automatically, or selected with `GPUI_FXC_PATH`).
+
 Enter `Alex` or another offline name, choose an installed Horizon version, and press **Play**.
 The name remains editable before every launch and is saved as `local_player_name` in the existing
 `settings.json`. Validation uses the game's `offline_name::is_valid` rule through the shared
