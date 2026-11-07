@@ -3631,8 +3631,11 @@ fn launcher_asset_running_from(appimage: bool) -> Option<&'static str> {
 }
 
 /// Development builds and `HORIZON_LAUNCHER_NO_SELF_UPDATE` never replace themselves.
+/// Fork distributions can bake the same switch in to keep the upstream updater disabled.
 pub fn self_update_allowed() -> bool {
-    !cfg!(debug_assertions) && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
+    !cfg!(debug_assertions)
+        && option_env!("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
+        && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
 }
 
 /// The version in `horizon-launcher --version`'s output (`horizon-launcher 0.1.5`).

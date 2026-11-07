@@ -68,6 +68,26 @@ Everything below is in the current release.
 
 This guide applies to this fork's **`main` branch**, using Minecraft **26.3** resources and Rust **1.95.0**. The existing Home/Play interface, version picker, Minecraft discovery, instance folders, Console and crash handling are used throughout.
 
+### Download and play
+
+1. Open [this fork's latest Release](https://github.com/lightningblade-1234/horizon/releases/latest).
+2. Download **horizon-launcher-setup.exe** to install using the existing Windows installer, or open **horizon-launcher.exe** directly.
+3. Enter your **Offline name** on **Home** and press **Play**. The existing launcher discovers Minecraft, installs/selects a Horizon build and prepares its local resources.
+
+You do **not** need Rust, Visual Studio, a source checkout or Microsoft login to run the released launcher. Releases contain only the compiled launcher and license/setup notices; **Mojang JARs, assets and prepared game data are never distributed**. You supply your own local Minecraft 26.3 files and Java 25 for preparation. Missing files are reported in Home; [first-time setup details](launcher/FORK-SETUP.md) explain the local server JAR input.
+
+### Clone and build with one setup command
+
+After cloning this fork and opening PowerShell in the checkout folder, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1
+```
+
+This developer helper installs missing Rust/C++/Windows SDK prerequisites through winget, selects the pinned toolchain and low-cache build settings, writes **`dist\horizon-launcher.exe`**, installs a Horizon game build using the existing launcher, reuses/installs Java 25, obtains the checksum-verified public server JAR in your local cache, prepares from your own Minecraft files, and opens Home. Already prepared installations are reused. Windows installers may require elevation or a restart.
+
+For another Minecraft folder, append `-MinecraftDir 'D:\your\minecraft'`. `-BuildOnly` builds just the launcher. Compiled outputs are gitignored; the Rust source stays in the repository and downloadable executables are published in Releases.
+
 ### Already set up on this computer
 
 Open the compiled launcher directly:
@@ -77,6 +97,9 @@ Open the compiled launcher directly:
 ```
 
 Enter your name in **Offline name**, then press **Play**. This computer already has a verified server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` and a prepared Horizon installation with sounds. There is no `--local` flag or separate offline page.
+
+<details>
+<summary>Manual build, resource setup and troubleshooting</summary>
 
 ### 1. Install the build prerequisites
 
@@ -171,9 +194,15 @@ Each instance can have its own game folder; Home's **Folder** control opens the 
 
 Further details: [this fork's launcher documentation](launcher/README.md#personal-fork-offline-play). The game's parser accepts `--name`, but it is not an advertised external Launch API option.
 
+</details>
+
 ## Download
 
-**The downloads below are upstream releases.** For this fork's offline launcher, use the [setup guide above](#offline-fork-setup-windows).
+**[Download this fork's offline launcher from Releases](https://github.com/lightningblade-1234/horizon/releases/latest).** GitHub's **Offline launcher release** workflow builds Windows x64 executables from `main` automatically when launcher/dependency source changes; it can also be started from Actions → Offline launcher release → Run workflow. The release ships the normal launcher and its existing installer, with embedded shaders/C runtime and the upstream launcher self-updater disabled.
+
+## Upstream downloads
+
+**The downloads below are upstream releases.** Use this fork's Release link above for offline Home/Play.
 
 Get **the Horizon launcher** from [playhorizon.dev](https://playhorizon.dev), or from [the launcher releases](https://github.com/horizon-rust/horizon/releases?q=launcher&expanded=true):
 

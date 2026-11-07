@@ -13,7 +13,17 @@ The opening, then Play ([clip](docs/opening.webm)):
 
 ## Personal fork: offline Play
 
-Open the normal launcher with:
+For a first install, [download this fork's compiled launcher](https://github.com/lightningblade-1234/horizon/releases/latest) and follow [the short setup guide](FORK-SETUP.md). GitHub builds the Windows executable and publishes it in Releases; no compiler is needed to run it, and no Mojang files are included.
+
+For a source checkout, one developer setup command builds and prepares the normal launcher:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1
+```
+
+Run it from the repository root. It reuses the existing install/preparation flow and local Minecraft files, obtains the verified server JAR locally, and opens Home. The compiled result is `dist\horizon-launcher.exe` (gitignored).
+
+To build manually, open the normal launcher with:
 
 ```sh
 cargo +1.95.0 run --manifest-path launcher/Cargo.toml
@@ -24,6 +34,8 @@ horizon-launcher
 The existing Home/Play interface now launches Horizon offline by default. The separate `--local`
 window has been removed. Microsoft account tools remain available in Settings and the CLI, but
 Home's startup and Horizon Play never inspect credentials, renew tokens or require an owner.
+
+Fork Releases bake in `HORIZON_LAUNCHER_NO_SELF_UPDATE=1`, so double-clicking the downloaded launcher cannot replace it with an upstream launcher. Game builds are still managed normally.
 
 Local Windows builds embed the launcher's DirectX shaders, so the built executable continues to
 work after Cargo caches are cleared. Building requires the Windows SDK's `fxc.exe` (found

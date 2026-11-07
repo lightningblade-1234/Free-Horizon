@@ -1137,6 +1137,8 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
 fn settings_json(s: &backend::Settings) -> serde_json::Value {
     serde_json::json!({
         "selected_version": backend::resolve_version(None).ok(),
+        "launcher_dir": backend::data_dir(),
+        "game_dir": backend::game_home(),
         "game_architecture": s.game_architecture.name(),
         "minecraft_dir": s.minecraft_dir,
         "server_dir": backend::server_dir(None),
