@@ -271,6 +271,13 @@ fn local_launch_uses_the_selected_installed_binary_and_only_resources_and_name()
 #[test]
 fn local_asset_diagnostics_reach_the_callers_console_before_the_game_starts() {
     let home = Home::new("asset-log");
+    // Exercise the missing-lock diagnostic on every host, including CI with no Minecraft
+    // install. This empty test store contains no Mojang files.
+    let minecraft = home.root.join("empty-minecraft-store");
+    fs::create_dir_all(&minecraft).unwrap();
+    let mut settings = Settings::load();
+    settings.minecraft_dir = Some(minecraft);
+    settings.save().unwrap();
     let lines = Mutex::new(Vec::new());
     let cmd = backend::local_client_with_log(TAG, "Alex", &|line| {
         lines.lock().unwrap().push(line);
