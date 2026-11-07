@@ -2269,6 +2269,7 @@ fn java(
     games: &[PathBuf],
     manifest: &Path,
     log: &dyn Fn(String),
+    local_only: bool,
 ) -> Result<PathBuf, String> {
     let find = if compiler {
         horizon_prepare::java::find
@@ -2291,6 +2292,9 @@ fn java(
         Ok(jdk) => return Ok(jdk.home()),
         Err(e) => e,
     };
+    if local_only {
+        return Err(missing);
+    }
     let component = read_json(manifest)
         .and_then(|json| json["javaVersion"]["component"].as_str().map(String::from))
         .ok_or_else(|| missing.clone())?;
@@ -2366,6 +2370,8 @@ fn assets_folder(
 /// Where the preparation takes Minecraft's files from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MinecraftFrom {
+    /// Existing local files only: no credentials, metadata fetches or download fallback.
+    Local,
     /// The player's own install (any launcher's); Mojang only when none has the version and an
     /// account that owns the game is signed in.
     Install,
@@ -2444,6 +2450,17 @@ pub fn preparer(
                 .map_err(|e| e.to_string())?;
             Ok(body)
         };
+        let offline_fetch = |url: &str| -> Result<Vec<u8>, String> {
+            Err(crate::i18n::trf(
+                "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
+                &[("url", url)],
+            ))
+        };
+        let fetch: sources::Fetch = if from == MinecraftFrom::Local {
+            &offline_fetch
+        } else {
+            &fetch
+        };
         let linked = data_dir().join("linked-minecraft");
         if from == MinecraftFrom::Mojang {
             // Straight from Mojang (what is already there and whole is kept), for an owner only.
@@ -2459,6 +2476,9 @@ pub fn preparer(
                     sources::Resolved::Folder(dir) => dir,
                     sources::Resolved::NotFound(checked) => {
                         let not_found = sources::not_found(&version, &checked, minecraft);
+                        if from == MinecraftFrom::Local {
+                            return Err(not_found);
+                        }
                         download_for_owner(&pins, &own, &fetch, log).map_err(|e| not_found + &e)?;
                         own
                     }
@@ -2466,6 +2486,17 @@ pub fn preparer(
             }
         }
     };
+    let jar = local_server_jar(&dir, &version).unwrap_or_else(|| {
+        data_dir()
+            .join("server-jars")
+            .join(format!("{version}.jar"))
+    });
+    if from == MinecraftFrom::Local && !reused && !jar.is_file() {
+        return Err(crate::i18n::trf(
+            "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",
+            &[("version", &version), ("path", &jar.display().to_string())],
+        ));
+    }
     let manifest = minecraft
         .join("versions")
         .join(&version)
@@ -2498,11 +2529,15 @@ pub fn preparer(
         &games,
         &manifest,
         log,
+        from == MinecraftFrom::Local,
     )?;
-    let jar = data_dir()
-        .join("server-jars")
-        .join(format!("{version}.jar"));
     if !reused && !jar.exists() {
+        if from == MinecraftFrom::Local {
+            return Err(crate::i18n::trf(
+                "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",
+                &[("version", &version), ("path", &jar.display().to_string())],
+            ));
+        }
         let json: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&manifest).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
@@ -2554,6 +2589,24 @@ pub fn preparer(
     }
     cmd.arg("--minecraft-dir").arg(&minecraft);
     Ok((Preparer::Process(cmd), minecraft))
+}
+
+fn local_server_jar(root: &Path, version: &str) -> Option<PathBuf> {
+    std::env::var_os("HORIZON_SERVER_JAR")
+        .filter(|p| !p.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| {
+            [
+                data_dir()
+                    .join("server-jars")
+                    .join(format!("{version}.jar")),
+                root.join(".local/minecraft")
+                    .join(version)
+                    .join("jars/server.jar"),
+            ]
+            .into_iter()
+            .find(|p| p.is_file())
+        })
 }
 
 /// Copies the pinned version's sounds from the player's own launcher install into the version's
@@ -2867,6 +2920,29 @@ pub fn append_game_args(cmd: &mut Command) {
     cmd.args(game_args());
 }
 
+/// Keep the existing extra arguments, but refuse overrides of Home's offline identity.
+pub fn append_offline_game_args(cmd: &mut Command) -> Result<(), String> {
+    let args = game_args();
+    if args.iter().any(|arg| {
+        matches!(
+            arg.split('=').next(),
+            Some("--session-file" | "--session-stdin" | "--name")
+        )
+    }) {
+        return Err(crate::i18n::tr(
+            "Remove --session-file, --session-stdin and --name from extra game arguments; Home supplies the offline player name.",
+        ).to_string());
+    }
+    cmd.args(args);
+    Ok(())
+}
+
+pub fn strip_session_env(cmd: &mut Command) {
+    cmd.env_remove("HORIZON_SESSION_FILE")
+        .env_remove("HORIZON_ACCOUNT_SESSIONS")
+        .env_remove("HORIZON_LAUNCHER_EXE");
+}
+
 /// Renderer workarounds a player may have exported to start the launcher itself (a transparent
 /// window on old Mesa drivers): they belong to the launcher's own webview and must not reach the
 /// game, which picks its own backend. Inherited, they left the client on CPU rendering at 2-3 FPS
@@ -2959,12 +3035,8 @@ pub fn local_client_with_log(
     complete_assets_with_log(&tag, log);
     let mut cmd = client_command(&tag);
     // A session exported by a parent process must not turn this offline start into a sign-in.
-    cmd.env_remove("HORIZON_SESSION_FILE")
-        .env_remove("HORIZON_ACCOUNT_SESSIONS")
-        .env_remove("HORIZON_LAUNCHER_EXE")
-        .env("HORIZON_TELEMETRY_URL", "off")
-        .arg("--name")
-        .arg(name);
+    strip_session_env(&mut cmd);
+    cmd.arg("--name").arg(name);
     Ok(cmd)
 }
 
@@ -4242,9 +4314,8 @@ pub enum Msg {
     AccountProgress(String, u64, crate::account::session::Phase),
     AccountHead(String, Option<String>, Option<Vec<[u8; 4]>>, bool),
     AccountRemoved(String, u64, Result<bool, String>),
-    /// The owner gate's answer for the game about to start: the selected account's session
-    /// file (none = offline) and why it plays offline, if it does.
-    Session(Result<crate::account::GameSession, crate::account::NoOwner>),
+    /// Local preflight completed for Home's session-free Horizon start.
+    OfflineGame(Result<Command, String>),
     /// A modpack step's line (`modpacks`).
     PackLine(String),
     /// A modpack step ended: the pack as it now is.

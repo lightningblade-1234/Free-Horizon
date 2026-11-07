@@ -11,20 +11,19 @@ The opening, then Play ([clip](docs/opening.webm)):
 
 ![Opening](docs/opening-1.png)
 
-## Personal Local / Offline window
+## Personal fork: offline Play
 
-Open the session-free launcher page with:
+Open the normal launcher with:
 
 ```sh
-cargo run --manifest-path launcher/Cargo.toml -- --local
+cargo +1.95.0 run --manifest-path launcher/Cargo.toml
 # Or, after building:
-horizon-launcher --local
+horizon-launcher
 ```
 
-On Windows, add `--local` to a shortcut's target to open this page directly. The flag is for the
-window, without a subcommand; ordinary launcher commands retain their existing account flow.
-`HORIZON_LAUNCHER_PAGE=local` (or `offline`) opens the same window through the existing start-page
-mechanism.
+The existing Home/Play interface now launches Horizon offline by default. The separate `--local`
+window has been removed. Microsoft account tools remain available in Settings and the CLI, but
+Home's startup and Horizon Play never inspect credentials, renew tokens or require an owner.
 
 Enter `Alex` or another offline name, choose an installed Horizon version, and press **Play**.
 The name remains editable before every launch and is saved as `local_player_name` in the existing
@@ -33,11 +32,9 @@ The name remains editable before every launch and is saved as `local_player_name
 characters**. Punctuation and one- or two-character names are valid in this rule; the authenticated
 launcher's account-name picker uses a narrower rule.
 
-The local window reads installed builds without checking releases, reading the Microsoft credential
-store, renewing accounts or showing the ownership gate. Play calls `backend::local_client_with_log`, starting
-from `backend::client_command(tag)`. It checks installation and prepared resources using the existing
-backend, completes missing extras only from local asset stores, and applies the selected Horizon
-instance's existing game folder. For a plain Horizon instance the argument vector is exactly:
+Play calls `backend::local_client_with_log`, starting from `backend::client_command(tag)`.
+It uses the existing version selection, local Minecraft discovery, preparer and instance folders.
+For a plain Horizon instance without extra game arguments the argument vector is:
 
 ```text
 --resources <launcher data>/versions/<tag>/.local/horizon-client/<Minecraft version> --name Alex
@@ -47,13 +44,14 @@ These are separate `Command.arg()` values, not a shell command. The working dire
 `HORIZON_HOME` are the instance's existing home (the default is `backend::game_home()`). The existing
 backend still supplies the macOS app bundle or Windows stable runtime path, pipes the game output
 to the Console, monitors exit and shows startup errors and crash reports. Local asset-completion
-diagnostics also go to that console, so this window can outlive a terminal that started it.
+diagnostics also go to that console, so the launcher can outlive a terminal that started it.
 
 No `AuthSession`, token or session file is made or supplied. `HORIZON_SESSION_FILE` and
 `HORIZON_ACCOUNT_SESSIONS` are explicitly removed from the child's environment, as is the launcher's
-session-renewal executable variable. The local window's startup/exit does not send telemetry, and
-its game has `HORIZON_TELEMETRY_URL=off`. Global extra game arguments and pre-launch/wrapper commands
-are not applied by this minimal path, so they cannot introduce a session argument or a shell start.
+session-renewal executable variable. Extra game arguments that contain `--name`, `--session-file`
+or `--session-stdin` are refused with a visible error; Home supplies the name. Existing instance
+launch options, Console, process monitoring and crash handling are reused. The launcher stays
+running and displays preparation/startup failures.
 
 Without a session, the client's existing parser keeps `--name`, `auth::current()` stays empty, and
 single player starts its existing integrated server using
@@ -64,10 +62,23 @@ servers require a genuine authenticated account.
 
 ### Local resources are required
 
-Play reuses an **installed, already prepared** build. It does not download Mojang files or launch
-automatic preparation. Missing, malformed or interrupted resources produce an error with their
-expected path. Prepare them separately from a local Minecraft installation and a local server jar,
-or another available local source, using the existing preparer. For a build with its preparer:
+Play reuses an installed, prepared build, or prepares it from **existing local files** first.
+This local-only mode cannot fetch version metadata, fall back to an ownership-gated download, or
+download the server JAR or Java. Missing inputs produce a visible error in Home. Local asset-copy
+and preparation diagnostics go through the existing Console.
+
+Choose your Minecraft folder using the existing folder control. Java 25 must be installed locally
+(a JDK is needed when compiling exporters). Supply a genuine local server JAR before launching:
+
+```powershell
+$env:HORIZON_SERVER_JAR = 'C:\path\to\26.3-server.jar'
+& .\launcher\target\debug\horizon-launcher.exe
+```
+
+The preparer verifies the JAR against the selected build's pins; for this checkout its SHA-1 is
+`33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`. A cached local JAR in the launcher's
+`server-jars/26.3.jar`, or verified imported artifacts, can be reused. Preparation can also be
+run separately using the existing preparer:
 
 ```sh
 horizon-prepare --prepare --root BUILD --minecraft-dir MINECRAFT --server-jar SERVER_JAR --output RESOURCES --complete
@@ -114,19 +125,10 @@ third-party launchers would be a separate Launch API extension, including its re
   preparation reuses checksum-verified game jars and libraries from the current
   or another installed Horizon version, so the original Minecraft install is
   only required when no valid imported copy exists.
-- **Download and prepare**: for a signed-in account that owns the game (asked again first),
-  the launcher downloads the pinned version from Mojang itself (piston-meta, piston-data,
-  libraries.minecraft.net, resources.download.minecraft.net; never a mirror) into `minecraft/`
-  in its data folder, in the official launcher's layout: the version file, the client jar, this
-  system's libraries, the asset index and the assets. Every file must have the size and sha1
-  Mojang lists. The Play page shows how far it is and has Cancel; files already whole are kept,
-  so the next try goes on from there. **From my install** prepares from the player's own launcher
-  instead, and an install that lacks the version falls back to the download. **Play** on a version
-  not prepared yet does it all for an owner, as the official launcher does: it prepares from the
-  install when there is one, else downloads (with Mojang's Java when no Java 25 is installed), then
-  starts the game. With no install on the computer the Play page offers the download alone and the
-  Minecraft folder row says none is needed. Without an owner,
-  the Play page asks to sign in first. `horizon-launcher prepare --download`.
+- **Offline preparation (this fork)**: Home's Play and Prepare read existing local Minecraft
+  files, a local server JAR and local Java. Missing inputs stop with an error. The optional CLI
+  `horizon-launcher prepare --download` retains the original authenticated ownership gate; Home
+  never invokes it.
 - **Mods**: tabs for Mods, Modpacks, Resource packs, Shader packs and Data packs. Mods, Modpacks,
   Resource packs and Data packs (into the world picked there) search Horizon's own registry, with
   its categories as filters, or Modrinth (CurseForge support is coming soon); Shader packs search

@@ -26,9 +26,6 @@ struct Cli {
     /// Print JSON instead of text, where a command has something to report
     #[arg(long, global = true)]
     json: bool,
-    /// Open the local/offline window using installed Horizon builds, without account checks
-    #[arg(long)]
-    local: bool,
     #[command(subcommand)]
     command: Option<Cmd>,
 }
@@ -1160,19 +1157,6 @@ fn settings_json(s: &backend::Settings) -> serde_json::Value {
     })
 }
 
-/// The window mode chosen by the CLI before the GPUI application starts.
-static LOCAL_WINDOW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// The session-free GUI entry point. The page environment variable follows the existing
-/// screenshot/start-page mechanism and also skips online startup work.
-pub(super) fn local_window() -> bool {
-    LOCAL_WINDOW.load(std::sync::atomic::Ordering::Relaxed)
-        || matches!(
-            std::env::var("HORIZON_LAUNCHER_PAGE").as_deref(),
-            Ok("local" | "offline")
-        )
-}
-
 /// Runs a subcommand and returns the exit code, or None when the window should open.
 pub fn run() -> Option<i32> {
     use clap::FromArgMatches;
@@ -1185,11 +1169,6 @@ pub fn run() -> Option<i32> {
         }
     }
     let cli = Cli::from_arg_matches(&definition.get_matches()).unwrap_or_else(|e| e.exit());
-    if cli.local && cli.command.is_some() {
-        eprintln!("error: {}", tr("Use --local without a subcommand."));
-        return Some(2);
-    }
-    LOCAL_WINDOW.store(cli.local, std::sync::atomic::Ordering::Relaxed);
     let command = cli.command?;
     let result = match command {
         Cmd::Mcp | Cmd::AgentConfig { .. } if no_ai => Err(horizon_core::no_ai::REFUSAL.into()),
@@ -1465,7 +1444,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let from = if download {
                 backend::MinecraftFrom::Mojang
             } else {
-                backend::MinecraftFrom::Install
+                backend::MinecraftFrom::Local
             };
             let (preparer, minecraft) =
                 backend::preparer(&tag, &minecraft, from, &|line| eprintln!("{line}"))?;
@@ -3744,11 +3723,14 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn local_opens_the_window_and_regular_play_keeps_its_own_flow() {
-        let local = Cli::try_parse_from(["horizon-launcher", "--local"]).unwrap();
-        assert!(local.local && local.command.is_none());
+    fn no_arguments_open_the_normal_window() {
+        assert!(Cli::try_parse_from(["horizon-launcher"])
+            .unwrap()
+            .command
+            .is_none());
+        assert!(Cli::try_parse_from(["horizon-launcher", "--local"]).is_err());
         let play = Cli::try_parse_from(["horizon-launcher", "play"]).unwrap();
-        assert!(!play.local && matches!(play.command, Some(Cmd::Play { .. })));
+        assert!(matches!(play.command, Some(Cmd::Play { .. })));
     }
 
     #[test]

@@ -5,29 +5,18 @@
 use super::*;
 
 impl Launcher {
-    /// Whether the screen covers the window: no owner, and either Play was refused or the player
-    /// hasn't read it yet. The data question comes first.
-    pub(crate) fn asking_owner(&self) -> bool {
-        !self.local_only
-            && (self.owner_shown() == Some(false) || sign_in_preview())
-            && (self.owner_screen_open || !self.settings.owner_notice_seen || sign_in_preview())
-            && !self.asking_consent()
-            && self.opening.is_none()
-    }
-
-    /// `owner` as the window shows it: the developer option that lets offline names play without
-    /// an owner (`dev_options`) hides the gate, as if the keychain hadn't answered yet.
-    pub(crate) fn owner_shown(&self) -> Option<bool> {
-        match self.owner {
-            Some(false) if self.settings.dev_offline => None,
-            owner => owner,
-        }
-    }
-
-    /// Opens the screen and starts the sign-in on it.
+    /// Explicit sign-in from the optional account screen; Home never opens this gate.
     pub(crate) fn sign_in_to_play(&mut self) {
         self.owner_screen_open = true;
         self.start_sign_in();
+    }
+
+    /// Whether the screen covers the window: no owner, and either Play was refused or the player
+    /// hasn't read it yet. The data question comes first.
+    pub(crate) fn asking_owner(&self) -> bool {
+        (self.owner_screen_open || sign_in_preview())
+            && !self.asking_consent()
+            && self.opening.is_none()
     }
 
     /// Closes it; it comes back with the next refused Play.

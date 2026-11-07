@@ -55,6 +55,7 @@ impl Home {
             std::env::set_var(key, value);
         }
         backend::forget_prepared();
+        std::env::remove_var("HORIZON_SERVER_JAR");
         let home = Self { root, _lock: lock };
         home.install(TAG);
         Settings {
@@ -83,6 +84,29 @@ impl Home {
 
     fn resources(&self, tag: &str) -> PathBuf {
         self.version(tag).join(".local/horizon-client/26.3")
+    }
+
+    fn local_inputs(&self) -> PathBuf {
+        use sha1::{Digest, Sha1};
+        let game = self.root.join("local-minecraft");
+        let version = game.join("versions/9.9");
+        fs::create_dir_all(&version).unwrap();
+        let client = b"local preparation test input, not a game";
+        let hash = |bytes: &[u8]| format!("{:x}", Sha1::digest(bytes));
+        let manifest = br#"{"id":"9.9","libraries":[]}"#;
+        fs::write(version.join("9.9.jar"), client).unwrap();
+        fs::write(version.join("9.9.json"), manifest).unwrap();
+        fs::write(
+            self.version(TAG).join("research-lock.json"),
+            serde_json::json!({
+                "minecraft": {"version":"9.9", "java_major":25,
+                    "manifest_sha1":hash(manifest), "client_sha1":hash(client),
+                    "server_sha1":"not-a-real-server"}
+            })
+            .to_string(),
+        )
+        .unwrap();
+        game
     }
 }
 
@@ -322,4 +346,84 @@ fn game_startup_failures_and_nonzero_exits_use_the_existing_process_monitor() {
     let (lines, exited) = monitored(backend::local_client(TAG, "Fail").unwrap());
     assert!(exited.unwrap_err().contains("Exited with"));
     assert!(lines.contains(&"fixture stderr".into()));
+}
+
+#[test]
+fn offline_preparation_reports_missing_local_inputs_without_accounts_or_downloads() {
+    let home = Home::new("local-preparation");
+    let minecraft = home.local_inputs();
+    for missing in [None, Some(home.root.join("missing server.jar"))] {
+        if let Some(path) = missing {
+            std::env::set_var("HORIZON_SERVER_JAR", path);
+        }
+        let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|_| {})
+            .err()
+            .expect("no server jar must stop preparation");
+        assert!(error.contains("HORIZON_SERVER_JAR"), "{error}");
+        assert!(error.contains("9.9"), "{error}");
+    }
+    fs::remove_file(minecraft.join("versions/9.9/9.9.jar")).unwrap();
+    let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|_| {})
+        .err()
+        .expect("no client jar must stop preparation");
+    assert!(error.contains("no Minecraft 9.9 client jar"), "{error}");
+    assert!(!home.root.join("launcher/account-secrets.json").exists());
+    assert!(!home.root.join("launcher/accounts.json").exists());
+    assert!(!home.root.join("launcher/minecraft").exists());
+    assert!(!home.root.join("launcher/server-jars").exists());
+}
+
+#[test]
+fn offline_preparation_cannot_fetch_a_missing_pinned_manifest() {
+    let home = Home::new("local-manifest");
+    let minecraft = home.local_inputs();
+    fs::remove_file(minecraft.join("versions/9.9/9.9.json")).unwrap();
+    let lines = Mutex::new(Vec::new());
+    let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|line| {
+        lines.lock().unwrap().push(line);
+    })
+    .err()
+    .expect("missing metadata must not be downloaded");
+    assert!(error.contains("local Minecraft version JSON"), "{error}");
+    assert!(lines
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|line| line.contains("Using Minecraft 9.9")));
+    assert!(!home.root.join("launcher/account-secrets.json").exists());
+}
+
+#[test]
+fn offline_extra_arguments_preserve_game_options_but_refuse_identity_and_sessions() {
+    let home = Home::new("extra-args");
+    let mut settings = Settings::load();
+    for arguments in [
+        "--session-file bad.json",
+        "--session-stdin",
+        "--name Other",
+        "--session-file=bad.json",
+    ] {
+        settings.game_args = arguments.into();
+        settings.save().unwrap();
+        let mut cmd = backend::local_client(TAG, "Alex").unwrap();
+        assert!(backend::append_offline_game_args(&mut cmd).is_err());
+        assert_eq!(cmd.get_args().count(), 4);
+    }
+    settings.game_args = "--width 800 --creative".into();
+    settings.save().unwrap();
+    let mut cmd = backend::local_client(TAG, "Alex").unwrap();
+    let mut instance = horizon_launcher::instances::selected();
+    instance.kind = horizon_launcher::instances::Kind::Own;
+    instance.home = home.root.join("another instance");
+    horizon_launcher::instances::apply(&mut cmd, &instance).unwrap();
+    backend::append_offline_game_args(&mut cmd).unwrap();
+    // Instance variables cannot reintroduce inherited session inputs.
+    cmd.env("HORIZON_SESSION_FILE", "bad.json");
+    backend::strip_session_env(&mut cmd);
+    let (lines, exit) = monitored(cmd);
+    assert!(exit.is_ok());
+    assert!(lines.contains(&"arg=Alex".into()));
+    assert!(lines.contains(&"arg=--creative".into()));
+    assert!(lines.contains(&format!("cwd={}", instance.home.display())));
+    assert!(lines.contains(&"HORIZON_SESSION_FILE=false".into()));
 }

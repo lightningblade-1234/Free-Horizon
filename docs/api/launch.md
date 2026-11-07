@@ -56,7 +56,7 @@ The account the game joins online-mode servers with ([microsoft-account.md](../m
 
 ### Same-tree local offline CLI
 
-The personal `horizon-launcher --local` window ([launcher README](../../launcher/README.md#personal-local--offline-window))
+The personal fork's normal Home/Play interface ([launcher README](../../launcher/README.md#personal-fork-offline-play))
 uses this checkout's existing `--name NAME` CLI option with prepared local resources and no session.
 The actual parser in `crates/horizon-client/src/game.rs` accepts it; a parser test covers that invocation.
 Without a session the game uses its real offline name/UUID initialization, without Microsoft authentication.
