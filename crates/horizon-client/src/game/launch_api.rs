@@ -268,6 +268,18 @@ mod tests {
         assert!(parse(&["--no-such-option"]).is_err());
     }
 
+    /// The same-tree local launcher uses this CLI option; it is not in `OPTIONS`' external API.
+    #[test]
+    fn local_cli_name_reaches_the_offline_player_without_a_session() {
+        let o = parse(&["--resources", "prepared", "--name", "Alex"])
+            .unwrap()
+            .unwrap();
+        assert_eq!(o.player_name(), "Alex");
+        assert_eq!(o.resources, std::path::Path::new("prepared"));
+        assert!(!o.session_stdin);
+        assert!(o.session_file.is_none());
+    }
+
     /// A launcher shows the error to the player, so it names the option.
     #[test]
     fn launch_api_bad_value_names_its_option() {

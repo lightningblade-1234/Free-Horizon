@@ -1,4 +1,8 @@
 {
+  "Local / Offline": "Local / Hors ligne",
+  "Enter a player name: 1 to 16 printable ASCII characters, without spaces.": "Saisissez un nom de joueur : de 1 à 16 caractères ASCII imprimables, sans espaces.",
+  "{tag} has no usable prepared resources at {resources}. Prepare this build with horizon-prepare from an existing local Minecraft installation or another local source first.": "{tag} n'a pas de ressources préparées utilisables dans {resources}. Préparez d'abord cette version avec horizon-prepare à partir d'une installation locale existante de Minecraft ou d'une autre source locale.",
+  "Use --local without a subcommand.": "Utilisez --local sans sous-commande.",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "Ses blocs et ses objets ont été repris et ont passé les vérifications de Horizon ; le code du mod lui-même n'est pas exécuté.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "Une partie a été reprise, mais un élément manque, diffère de l'original ou n'a pas encore été vérifié ; le détail technique précise lequel.",
   "It does not come over yet.": "Il n'est pas encore repris.",

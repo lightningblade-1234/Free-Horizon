@@ -1,4 +1,8 @@
 {
+  "Local / Offline": "Local / Offline",
+  "Enter a player name: 1 to 16 printable ASCII characters, without spaces.": "Enter a player name: 1 to 16 printable ASCII characters, without spaces.",
+  "{tag} has no usable prepared resources at {resources}. Prepare this build with horizon-prepare from an existing local Minecraft installation or another local source first.": "{tag} has no usable prepared resources at {resources}. Prepare this build with horizon-prepare from an existing local Minecraft installation or another local source first.",
+  "Use --local without a subcommand.": "Use --local without a subcommand.",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "บล็อกและไอเทมของม็อดนี้พอร์ตมาแล้วและผ่านการตรวจของ Horizon ส่วนโค้ดของม็อดเองไม่ได้ถูกรัน",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "พอร์ตมาได้บางส่วน แต่มีบางอย่างขาดไป ต่างจากต้นฉบับ หรือยังไม่ได้ตรวจ ดูได้ในรายละเอียดทางเทคนิคว่าเป็นส่วนไหน",
   "It does not come over yet.": "ยังพอร์ตมาไม่ได้",

@@ -11,6 +11,78 @@ The opening, then Play ([clip](docs/opening.webm)):
 
 ![Opening](docs/opening-1.png)
 
+## Personal Local / Offline window
+
+Open the session-free launcher page with:
+
+```sh
+cargo run --manifest-path launcher/Cargo.toml -- --local
+# Or, after building:
+horizon-launcher --local
+```
+
+On Windows, add `--local` to a shortcut's target to open this page directly. The flag is for the
+window, without a subcommand; ordinary launcher commands retain their existing account flow.
+`HORIZON_LAUNCHER_PAGE=local` (or `offline`) opens the same window through the existing start-page
+mechanism.
+
+Enter `Alex` or another offline name, choose an installed Horizon version, and press **Play**.
+The name remains editable before every launch and is saved as `local_player_name` in the existing
+`settings.json`. Validation uses the game's `offline_name::is_valid` rule through the shared
+`horizon_core::player_name::is_valid`: **1–16 printable ASCII characters, without spaces or control
+characters**. Punctuation and one- or two-character names are valid in this rule; the authenticated
+launcher's account-name picker uses a narrower rule.
+
+The local window reads installed builds without checking releases, reading the Microsoft credential
+store, renewing accounts or showing the ownership gate. Play calls `backend::local_client_with_log`, starting
+from `backend::client_command(tag)`. It checks installation and prepared resources using the existing
+backend, completes missing extras only from local asset stores, and applies the selected Horizon
+instance's existing game folder. For a plain Horizon instance the argument vector is exactly:
+
+```text
+--resources <launcher data>/versions/<tag>/.local/horizon-client/<Minecraft version> --name Alex
+```
+
+These are separate `Command.arg()` values, not a shell command. The working directory and
+`HORIZON_HOME` are the instance's existing home (the default is `backend::game_home()`). The existing
+backend still supplies the macOS app bundle or Windows stable runtime path, pipes the game output
+to the Console, monitors exit and shows startup errors and crash reports. Local asset-completion
+diagnostics also go to that console, so this window can outlive a terminal that started it.
+
+No `AuthSession`, token or session file is made or supplied. `HORIZON_SESSION_FILE` and
+`HORIZON_ACCOUNT_SESSIONS` are explicitly removed from the child's environment, as is the launcher's
+session-renewal executable variable. The local window's startup/exit does not send telemetry, and
+its game has `HORIZON_TELEMETRY_URL=off`. Global extra game arguments and pre-launch/wrapper commands
+are not applied by this minimal path, so they cannot introduce a session argument or a shell start.
+
+Without a session, the client's existing parser keeps `--name`, `auth::current()` stays empty, and
+single player starts its existing integrated server using
+`horizon_protocol::crypto::offline_uuid(name)` (vanilla's version-3 UUID from `OfflinePlayer:<name>`).
+Using the same spelling keeps the same offline identity; another spelling, including different
+case, has another UUID. This works for single player, LAN and offline-mode servers; online-mode
+servers require a genuine authenticated account.
+
+### Local resources are required
+
+Play reuses an **installed, already prepared** build. It does not download Mojang files or launch
+automatic preparation. Missing, malformed or interrupted resources produce an error with their
+expected path. Prepare them separately from a local Minecraft installation and a local server jar,
+or another available local source, using the existing preparer. For a build with its preparer:
+
+```sh
+horizon-prepare --prepare --root BUILD --minecraft-dir MINECRAFT --server-jar SERVER_JAR --output RESOURCES --complete
+horizon-prepare --root BUILD --output RESOURCES --check
+```
+
+`BUILD` is that installed version's folder, and `RESOURCES` is the path the error displays. The
+preparer checks that the local files match that build's pins; it needs the appropriate Java runtime.
+No additional game engine or resource-preparation implementation is involved.
+
+**CLI compatibility:** this source tree's game parser accepts `--name`, and a parser test covers the
+local invocation. `--name` is not advertised by `--launch-api` and is not a promised external Launch
+API option. Build the local launcher and client from compatible source; formally advertising it to
+third-party launchers would be a separate Launch API extension, including its reference/version tests.
+
 ## What it does
 
 - **Versions**: lists the published builds of horizon-rust/horizon (the current Nightly, the last

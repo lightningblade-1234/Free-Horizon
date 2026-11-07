@@ -44,6 +44,7 @@ mod internet;
 mod language_page;
 mod launch_page;
 mod line_edit;
+mod local_page;
 mod location_page;
 mod markdown;
 mod mcp;
@@ -223,6 +224,9 @@ const LOG_LINES: usize = 2000;
 
 struct Launcher {
     theme: Theme,
+    /// `--local`: startup and Play use only local files and never inspect Microsoft credentials.
+    local_only: bool,
+    local: local_page::Local,
     page: Page,
     /// How many times the page changed, for the page transition.
     switches: usize,
@@ -553,6 +557,7 @@ impl Launcher {
         })
         .detach();
         let mut settings = Settings::load();
+        let local_only = cli::local_window();
         i18n::set(settings.language());
         if settings.minecraft_dir.is_none() {
             settings.minecraft_dir = backend::default_minecraft_dir();
@@ -583,6 +588,8 @@ impl Launcher {
         let mut this = Self {
             theme: Theme::for_appearance(settings.appearance, settings.accent, window.appearance())
                 .with_glass(settings.glass_tint(), settings.glass_blur()),
+            local_only,
+            local: local_page::Local::new(settings.local_player_name.clone(), cx),
             page: Page::from_env(),
             switches: 0,
             content_scroll: Scrollbar::default(),
@@ -610,7 +617,11 @@ impl Launcher {
             instance_install: None,
             install_next: None,
             bar: (0., 0.),
-            releases: Load::Loading,
+            releases: if local_only {
+                Load::Ready(Vec::new())
+            } else {
+                Load::Loading
+            },
             installed,
             installing: None,
             removing: Vec::new(),
@@ -680,7 +691,11 @@ impl Launcher {
             root_focus: cx.focus_handle(),
             palette: None,
             toast_seen: None,
-            accounts: Accounts::load(),
+            accounts: if local_only {
+                Accounts::default()
+            } else {
+                Accounts::load()
+            },
             auth_status: HashMap::new(),
             auth_progress: HashMap::new(),
             profile_heads: profile_heads::Heads::default(),
@@ -770,27 +785,29 @@ impl Launcher {
         if this.bench.is_some() {
             this.perf.keep_local_log(false);
         }
-        let tx = this.tx.clone();
-        let keychain_tx = this.tx.clone();
-        // Asking the keychain can block (D-Bus), so not on this thread.
-        let accounts = this.accounts.clone();
-        std::thread::spawn(move || {
-            let store = account::store();
-            let _ = keychain_tx.send(Msg::Keychain(account::no_keychain()));
-            let _ = keychain_tx.send(Msg::Owner(accounts.has_owner(store)));
-        });
-        std::thread::spawn(move || {
-            let reused = backend::reuse_prepared_everywhere();
-            if !reused.is_empty() {
-                let _ = tx.send(Msg::Reused(reused));
-            }
-        });
-        this.load_profile_heads();
-        this.load_auth_statuses(true);
-        this.fetch_startup_releases();
-        this.mods_auto_update();
-        this.fetch_links();
-        this.watch_shop(cx);
+        if !local_only {
+            let tx = this.tx.clone();
+            let keychain_tx = this.tx.clone();
+            // Asking the keychain can block (D-Bus), so not on this thread.
+            let accounts = this.accounts.clone();
+            std::thread::spawn(move || {
+                let store = account::store();
+                let _ = keychain_tx.send(Msg::Keychain(account::no_keychain()));
+                let _ = keychain_tx.send(Msg::Owner(accounts.has_owner(store)));
+            });
+            std::thread::spawn(move || {
+                let reused = backend::reuse_prepared_everywhere();
+                if !reused.is_empty() {
+                    let _ = tx.send(Msg::Reused(reused));
+                }
+            });
+            this.load_profile_heads();
+            this.load_auth_statuses(true);
+            this.fetch_startup_releases();
+            this.mods_auto_update();
+            this.fetch_links();
+            this.watch_shop(cx);
+        }
         if home::getting_ready_preview() {
             this.preparing = true;
             this.play_when_prepared = this.selected().cloned();
@@ -819,9 +836,11 @@ impl Launcher {
             this.wardrobe_preview();
         }
         // What the game and the launcher kept, if the player allows it and there is a server.
-        telemetry::send_in_background();
-        telemetry::watch_playing(this.tx.clone());
-        telemetry::watch_official(this.tx.clone());
+        if !local_only {
+            telemetry::send_in_background();
+            telemetry::watch_playing(this.tx.clone());
+            telemetry::watch_official(this.tx.clone());
+        }
         this
     }
 
@@ -876,17 +895,19 @@ impl Launcher {
         // The game may have made up a name since, and the CLI or another window may have
         // changed the accounts: read them again (small files, once a switch).
         self.offline_name = offline_name();
-        self.accounts = Accounts::load();
-        // Each check reads the keychain (a prompt on macOS): page switches check every account
-        // at most once a minute, and an account added meanwhile at once.
-        if self
-            .auth_checked
-            .is_none_or(|t| t.elapsed() >= Duration::from_secs(60))
-            || (self.accounts.accounts.iter()).any(|a| !self.auth_status.contains_key(&a.uuid))
-        {
-            self.load_auth_statuses(false);
+        if !self.local_only {
+            self.accounts = Accounts::load();
+            // Each check reads the keychain (a prompt on macOS): page switches check every account
+            // at most once a minute, and an account added meanwhile at once.
+            if self
+                .auth_checked
+                .is_none_or(|t| t.elapsed() >= Duration::from_secs(60))
+                || (self.accounts.accounts.iter()).any(|a| !self.auth_status.contains_key(&a.uuid))
+            {
+                self.load_auth_statuses(false);
+            }
+            self.load_profile_heads();
         }
-        self.load_profile_heads();
         self.wardrobe_reload |= matches!(page, Page::Wardrobe | Page::Shop);
         if page != self.page {
             self.page = page;
@@ -5350,7 +5371,9 @@ impl Render for Launcher {
         self.window_long_side = f32::from(size.width).max(f32::from(size.height));
         self.scale_factor = window.scale_factor();
         let content = match self.page {
+            Page::Play if self.local_only => self.local_page(window, cx),
             Page::Play => self.play_page(cx),
+            Page::Versions if self.local_only => self.local_versions_page(cx),
             Page::Versions => self.versions_page(cx),
             Page::Mods => self.mods_page(cx),
             Page::Servers => self.servers_page(cx),
@@ -5398,7 +5421,9 @@ impl Render for Launcher {
             sky.into_any_element()
         };
         // Dark: the glass frame over the scene; Light keeps the night one over the dawn.
-        let (topbar, sidebar) = if t.glass {
+        let (topbar, sidebar) = if self.local_only {
+            (self.local_topbar(cx), div().into_any_element())
+        } else if t.glass {
             (
                 self.glass_topbar(cx),
                 self.glass_sidebar(window, cx).into_any_element(),
@@ -5444,7 +5469,12 @@ impl Render for Launcher {
                 } else {
                     k.modifiers.control
                 };
-                if this.theme.glass && command && !k.modifiers.shift && k.key == "k" {
+                if !this.local_only
+                    && this.theme.glass
+                    && command
+                    && !k.modifiers.shift
+                    && k.key == "k"
+                {
                     this.palette_toggle(window, cx);
                     cx.stop_propagation();
                     cx.notify();
@@ -5560,7 +5590,7 @@ impl Render for Launcher {
         if let Some(palette) = self.palette_overlay(window, cx) {
             root = root.child(palette);
         }
-        if self.asking_consent() {
+        if !self.local_only && self.asking_consent() {
             root = root.child(self.consent_screen(cx));
         }
         if self.asking_owner() {
@@ -5699,7 +5729,9 @@ actions!(horizon_launcher, [Quit, CloseWindow]);
 /// exit. A game that is running keeps running. Cmd+Q goes through here too.
 fn shut_down(cx: &mut App) {
     servers_page::stop_on_quit();
-    telemetry::send_before_exit();
+    if !cli::local_window() {
+        telemetry::send_before_exit();
+    }
     // A staged launcher update goes in once this process has exited.
     horizon_launcher::update_handoff::on_quit();
     cx.quit()

@@ -1905,9 +1905,12 @@ const COMPLETIONS: [Completion; 5] = [
 /// in any Minecraft folder, one line each in the log, once per launcher run, and the version plays
 /// as before. Nothing is prepared again.
 pub fn complete_assets(tag: &str) {
-    complete_assets_in(&versions_dir(), tag, minecraft_folders, &|line| {
-        eprintln!("{line}")
-    });
+    complete_assets_with_log(tag, &|line| eprintln!("{line}"));
+}
+
+/// The same local asset completion, reporting through the caller's console/log instead of stderr.
+pub fn complete_assets_with_log(tag: &str, log: &dyn Fn(String)) {
+    complete_assets_in(&versions_dir(), tag, minecraft_folders, log);
 }
 
 /// Horizon's own download (an owner's) may have stopped before the sounds and the languages,
@@ -2907,6 +2910,62 @@ pub fn client_command(tag: &str) -> Command {
         );
     }
     cmd
+}
+
+/// The game's offline/login rule, also used by `horizon_client::offline_name::is_valid`.
+pub fn validate_local_name(name: &str) -> Result<(), String> {
+    if horizon_core::player_name::is_valid(name) {
+        Ok(())
+    } else {
+        Err(crate::i18n::tr(
+            "Enter a player name: 1 to 16 printable ASCII characters, without spaces.",
+        )
+        .to_string())
+    }
+}
+
+/// Recovery for Local / Offline: preparation is a separate, local-only operation.
+pub fn local_prepare_help(tag: &str) -> String {
+    crate::i18n::trf(
+        "{tag} has no usable prepared resources at {resources}. Prepare this build with horizon-prepare from an existing local Minecraft installation or another local source first.",
+        &[
+            ("tag", tag),
+            ("resources", &resources(tag).display().to_string()),
+        ],
+    )
+}
+
+/// A session-free start using an already installed build. No account gate, credential store,
+/// session handoff, downloads or automatic mod updates are involved.
+/// `--name` is this checkout's local CLI contract, not an advertised Launch API option.
+pub fn local_client(tag: &str, name: &str) -> Result<Command, String> {
+    local_client_with_log(tag, name, &|line| eprintln!("{line}"))
+}
+
+/// The GUI's local start keeps preparation diagnostics in the existing game console. A desktop
+/// launcher may outlive the terminal/pipe that started it, so workers must not print to that pipe.
+pub fn local_client_with_log(
+    tag: &str,
+    name: &str,
+    log: &dyn Fn(String),
+) -> Result<Command, String> {
+    validate_local_name(name)?;
+    let tag = resolve_version(Some(tag))?;
+    if let Some(error) = game_architecture_launch_error(&tag) {
+        return Err(error);
+    }
+    need_prepared(&tag).map_err(|_| local_prepare_help(&tag))?;
+    // This only copies missing extras from local asset stores; it never downloads them.
+    complete_assets_with_log(&tag, log);
+    let mut cmd = client_command(&tag);
+    // A session exported by a parent process must not turn this offline start into a sign-in.
+    cmd.env_remove("HORIZON_SESSION_FILE")
+        .env_remove("HORIZON_ACCOUNT_SESSIONS")
+        .env_remove("HORIZON_LAUNCHER_EXE")
+        .env("HORIZON_TELEMETRY_URL", "off")
+        .arg("--name")
+        .arg(name);
+    Ok(cmd)
 }
 
 /// The game's program: on macOS the one inside the version's Horizon.app, so the Dock and Cmd+Tab
@@ -4362,6 +4421,9 @@ impl WhilePlaying {
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub selected: Option<String>,
+    /// The Local / Offline page's last entered name. Public text only, never an account/session.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub local_player_name: String,
     /// Game asset architecture. Auto preserves the launcher's process-architecture behavior.
     #[serde(default)]
     pub game_architecture: GameArchitecture,

@@ -68,6 +68,12 @@ All requests use HTTPS and JSON except the two OAuth calls (form-encoded):
 
 ## The owner gate
 
+The personal fork's `horizon-launcher --local` window is a separate, session-free entry point
+([launcher README](../launcher/README.md#personal-local--offline-window)). Its startup does not read or
+renew Microsoft credentials; its Play does not call the owner gate or the account-session functions.
+It starts an installed, prepared Horizon client with `--name` and no session. The authenticated
+launcher flow described below continues to apply to the ordinary window and commands.
+
 Decided 2026-10-27 (Ludovic, after a modder's suggestion): like other launchers, Horizon's
 launcher starts the game only while an account in it owns Java Edition. Offline play stays
 possible; the launcher just doesn't offer it on its own.
