@@ -2271,6 +2271,26 @@ fn java(
     log: &dyn Fn(String),
     local_only: bool,
 ) -> Result<PathBuf, String> {
+    java_with_fetch(
+        major,
+        compiler,
+        games,
+        manifest,
+        log,
+        local_only,
+        &fetch_bytes,
+    )
+}
+
+fn java_with_fetch(
+    major: i64,
+    compiler: bool,
+    games: &[PathBuf],
+    manifest: &Path,
+    log: &dyn Fn(String),
+    local_only: bool,
+    fetch: sources::Fetch,
+) -> Result<PathBuf, String> {
     let find = if compiler {
         horizon_prepare::java::find
     } else {
@@ -2305,16 +2325,8 @@ fn java(
             "{missing}\n  • Minecraft's own Java from Mojang needs glibc ({GLIBC_LOADER} is missing; on NixOS, enable programs.nix-ld), so install compatible Java instead."
         ));
     }
-    let fetch = |url: &str| -> Result<Vec<u8>, String> {
-        let mut body = Vec::new();
-        get(url)?
-            .into_reader()
-            .read_to_end(&mut body)
-            .map_err(|e| e.to_string())?;
-        Ok(body)
-    };
     let runtime = data_dir().join("minecraft").join("runtime");
-    let home = mojang::java_runtime(&component, &runtime, 8, &fetch, &mojang::CANCEL, log)
+    let home = mojang::java_runtime(&component, &runtime, 8, fetch, &mojang::CANCEL, log)
         .map_err(|e| {
         format!("{missing}\n  • Horizon also tried to download Minecraft's own Java from Mojang, but: {e}")
     })?;
@@ -2372,6 +2384,8 @@ fn assets_folder(
 pub enum MinecraftFrom {
     /// Existing local files only: no credentials, metadata fetches or download fallback.
     Local,
+    /// Local client files, automatically obtaining missing public Java/server-JAR prerequisites.
+    LocalSetup,
     /// The player's own install (any launcher's); Mojang only when none has the version and an
     /// account that owns the game is signed in.
     Install,
@@ -2456,11 +2470,12 @@ pub fn preparer(
                 &[("url", url)],
             ))
         };
-        let fetch: sources::Fetch = if from == MinecraftFrom::Local {
-            &offline_fetch
-        } else {
-            &fetch
-        };
+        let fetch: sources::Fetch =
+            if matches!(from, MinecraftFrom::Local | MinecraftFrom::LocalSetup) {
+                &offline_fetch
+            } else {
+                &fetch
+            };
         let linked = data_dir().join("linked-minecraft");
         if from == MinecraftFrom::Mojang {
             // Straight from Mojang (what is already there and whole is kept), for an owner only.
@@ -2476,7 +2491,7 @@ pub fn preparer(
                     sources::Resolved::Folder(dir) => dir,
                     sources::Resolved::NotFound(checked) => {
                         let not_found = sources::not_found(&version, &checked, minecraft);
-                        if from == MinecraftFrom::Local {
+                        if matches!(from, MinecraftFrom::Local | MinecraftFrom::LocalSetup) {
                             return Err(not_found);
                         }
                         download_for_owner(&pins, &own, &fetch, log).map_err(|e| not_found + &e)?;
@@ -2486,7 +2501,7 @@ pub fn preparer(
             }
         }
     };
-    let jar = local_server_jar(&dir, &version).unwrap_or_else(|| {
+    let mut jar = local_server_jar(&dir, &version).unwrap_or_else(|| {
         data_dir()
             .join("server-jars")
             .join(format!("{version}.jar"))
@@ -2531,7 +2546,12 @@ pub fn preparer(
         log,
         from == MinecraftFrom::Local,
     )?;
-    if !reused && !jar.exists() {
+    if !reused && from == MinecraftFrom::LocalSetup {
+        let cache = data_dir()
+            .join("server-jars")
+            .join(format!("{version}.jar"));
+        jar = setup_server_jar(&version, &manifest, &jar, &cache, &fetch_bytes, log)?;
+    } else if !reused && !jar.exists() {
         if from == MinecraftFrom::Local {
             return Err(crate::i18n::trf(
                 "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",
@@ -2589,6 +2609,43 @@ pub fn preparer(
     }
     cmd.arg("--minecraft-dir").arg(&minecraft);
     Ok((Preparer::Process(cmd), minecraft))
+}
+
+fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    get(url)?
+        .into_reader()
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    Ok(bytes)
+}
+
+/// Setup may fetch the public server JAR, but only after local client metadata was verified.
+/// Never overwrite a user's explicit JAR path; write downloads into the managed cache.
+fn setup_server_jar(
+    version: &str,
+    manifest: &Path,
+    candidate: &Path,
+    cache: &Path,
+    fetch: sources::Fetch,
+    log: &dyn Fn(String),
+) -> Result<PathBuf, String> {
+    let json: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(manifest).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let missing = || format!("{} has no server download", manifest.display());
+    let server = &json["downloads"]["server"];
+    let checksum = server["sha1"].as_str().ok_or_else(missing)?;
+    for path in [candidate, cache] {
+        if sources::sha1_file(path).as_deref() == Some(checksum) {
+            return Ok(path.to_path_buf());
+        }
+    }
+    let url = server["url"].as_str().ok_or_else(missing)?;
+    log(format!("Downloading the {version} server jar from Mojang"));
+    let bytes = sources::fetch_checked(fetch, url, checksum)?;
+    sources::write_file(cache, &bytes)?;
+    Ok(cache.to_path_buf())
 }
 
 fn local_server_jar(root: &Path, version: &str) -> Option<PathBuf> {
@@ -4724,6 +4781,10 @@ mod release_loading_tests;
 #[cfg(test)]
 #[path = "backend/java_tests.rs"]
 mod java_tests;
+
+#[cfg(test)]
+#[path = "backend/setup_tests.rs"]
+mod setup_tests;
 
 #[cfg(test)]
 mod tests {

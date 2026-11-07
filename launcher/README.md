@@ -35,6 +35,10 @@ The existing Home/Play interface now launches Horizon offline by default. The se
 window has been removed. Microsoft account tools remain available in Settings and the CLI, but
 Home's startup and Horizon Play never inspect credentials, renew tokens or require an owner.
 
+The release executable performs runtime prerequisite setup itself: it reuses/obtains managed
+Java and a verified public server JAR, then prepares the selected build from local client files.
+It uses the existing Home progress, Console and process monitor; no repository script is executed.
+
 Fork Releases bake in `HORIZON_LAUNCHER_NO_SELF_UPDATE=1`, so double-clicking the downloaded launcher cannot replace it with an upstream launcher. Game builds are still managed normally.
 
 Local Windows builds embed the launcher's DirectX shaders, so the built executable continues to
@@ -79,12 +83,14 @@ servers require a genuine authenticated account.
 ### Local resources are required
 
 Play reuses an installed, prepared build, or prepares it from **existing local files** first.
-This local-only mode cannot fetch version metadata, fall back to an ownership-gated download, or
-download the server JAR or Java. Missing inputs produce a visible error in Home. Local asset-copy
-and preparation diagnostics go through the existing Console.
+Client discovery cannot fetch missing version metadata or fall back to an ownership-gated client
+download. GUI runtime setup can obtain missing public Java/server-JAR prerequisites in a local
+cache. The separate `MinecraftFrom::Local` backend mode remains strictly download-free. Missing
+inputs produce a visible error in Home; diagnostics go through the existing Console.
 
-Choose your Minecraft folder using the existing folder control. Java 25 must be installed locally
-(a JDK is needed when compiling exporters). Supply a genuine local server JAR before launching:
+Choose your Minecraft folder using the existing folder control. Java 25 and the pinned server JAR
+are reused or obtained automatically by GUI setup. A JDK is needed when compiling exporters.
+To explicitly select a genuine local server JAR:
 
 ```powershell
 $env:HORIZON_SERVER_JAR = 'C:\path\to\26.3-server.jar'
@@ -142,7 +148,8 @@ third-party launchers would be a separate Launch API extension, including its re
   or another installed Horizon version, so the original Minecraft install is
   only required when no valid imported copy exists.
 - **Offline preparation (this fork)**: Home's Play and Prepare read existing local Minecraft
-  files, a local server JAR and local Java. Missing inputs stop with an error. The optional CLI
+  client files, obtaining missing public Java/server-JAR prerequisites locally. Missing client
+  inputs stop with an error. The optional CLI
   `horizon-launcher prepare --download` retains the original authenticated ownership gate; Home
   never invokes it.
 - **Mods**: tabs for Mods, Modpacks, Resource packs, Shader packs and Data packs. Mods, Modpacks,

@@ -370,10 +370,15 @@ fn offline_preparation_reports_missing_local_inputs_without_accounts_or_download
         assert!(error.contains("9.9"), "{error}");
     }
     fs::remove_file(minecraft.join("versions/9.9/9.9.jar")).unwrap();
-    let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|_| {})
-        .err()
-        .expect("no client jar must stop preparation");
-    assert!(error.contains("no Minecraft 9.9 client jar"), "{error}");
+    for from in [
+        backend::MinecraftFrom::Local,
+        backend::MinecraftFrom::LocalSetup,
+    ] {
+        let error = backend::preparer(TAG, &minecraft, from, &|_| {})
+            .err()
+            .expect("no client jar must stop preparation");
+        assert!(error.contains("no Minecraft 9.9 client jar"), "{error}");
+    }
     assert!(!home.root.join("launcher/account-secrets.json").exists());
     assert!(!home.root.join("launcher/accounts.json").exists());
     assert!(!home.root.join("launcher/minecraft").exists());
@@ -386,12 +391,17 @@ fn offline_preparation_cannot_fetch_a_missing_pinned_manifest() {
     let minecraft = home.local_inputs();
     fs::remove_file(minecraft.join("versions/9.9/9.9.json")).unwrap();
     let lines = Mutex::new(Vec::new());
-    let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|line| {
-        lines.lock().unwrap().push(line);
-    })
-    .err()
-    .expect("missing metadata must not be downloaded");
-    assert!(error.contains("local Minecraft version JSON"), "{error}");
+    for from in [
+        backend::MinecraftFrom::Local,
+        backend::MinecraftFrom::LocalSetup,
+    ] {
+        let error = backend::preparer(TAG, &minecraft, from, &|line| {
+            lines.lock().unwrap().push(line);
+        })
+        .err()
+        .expect("missing metadata must not be downloaded");
+        assert!(error.contains("local Minecraft version JSON"), "{error}");
+    }
     assert!(lines
         .lock()
         .unwrap()

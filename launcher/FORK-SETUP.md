@@ -10,12 +10,17 @@ Running the released launcher needs no Rust, Visual Studio, source checkout or M
 The release contains only the launcher and license/setup notices. Minecraft JARs, assets and
 prepared game files are never distributed with it.
 
-Preparation uses your own local **Minecraft 26.3** installation (normally `%APPDATA%\.minecraft`)
-and **Java 25**. Minecraft-managed Java runtimes can be reused. If Home reports missing input,
-use its Minecraft folder chooser and provide the file requested. The public server JAR's URL
-is `downloads.server.url` in your local `versions/26.3/26.3.json`; put the verified JAR in
-`%APPDATA%\horizon-launcher\server-jars\26.3.jar`, or set `HORIZON_SERVER_JAR` to its path.
-Its pinned SHA-1 is `33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
+Runtime prerequisites are set up automatically in the normal launcher, without PowerShell or
+a source checkout. It installs/selects a Horizon build, reuses local Java or obtains managed
+**Java 25**, downloads a checksum-verified public server JAR into your local cache when needed,
+and prepares from your own **Minecraft 26.3** installation (normally `%APPDATA%\.minecraft`).
+Progress and failures appear in the existing Console/Home interface. If local Minecraft client
+files or version metadata are missing, use the Minecraft folder chooser and supply the requested
+file; the launcher does not authenticate or download those missing client files.
+
+An existing server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` or at
+`HORIZON_SERVER_JAR` can be reused after checksum verification. The 26.3 pin is
+`33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
 
 The preparer writes resources locally, then the game runs in Rust. Offline names accept
 1-16 printable ASCII characters without spaces/control characters. The same spelling keeps

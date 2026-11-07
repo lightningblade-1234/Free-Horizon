@@ -528,7 +528,7 @@ impl Launcher {
                     item.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.home_menu = HomeMenu::None;
                         match what {
-                            PlayItem::Prepare => this.prepare(backend::MinecraftFrom::Local),
+                            PlayItem::Prepare => this.prepare(backend::MinecraftFrom::LocalSetup),
                             PlayItem::Play => this.play(),
                             PlayItem::Shortcut => {
                                 if let Some((id, name)) = id.clone() {

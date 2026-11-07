@@ -393,6 +393,8 @@ struct Launcher {
     starting_client: Option<String>,
     /// Play was pressed on a version not prepared yet: it starts once this preparation ends well.
     play_when_prepared: Option<String>,
+    /// One automatic runtime setup attempt after the startup game install/update finishes.
+    startup_setup_pending: bool,
     /// Join a friend: the code typed on the Play page, and the one the game
     /// starting now joins.
     friend_code: line_edit::LineEdit,
@@ -705,6 +707,7 @@ impl Launcher {
             dev_options: false,
             starting_client: None,
             play_when_prepared: None,
+            startup_setup_pending: true,
             friend_code: line_edit::LineEdit::new(String::new(), 256, 32),
             friend_focused: false,
             window_width: 0.,
@@ -1311,6 +1314,7 @@ impl Launcher {
                     if let Some(next) = self.install_next.take() {
                         self.install_for_instance(next);
                     }
+                    self.setup_runtime_on_startup();
                 }
                 Msg::Removed(tag, result) => {
                     self.removing.retain(|t| *t != tag);
@@ -1349,8 +1353,12 @@ impl Launcher {
                     if let Some(release) = self.updates.launcher.clone() {
                         self.update_launcher(release);
                     }
+                    self.setup_runtime_on_startup();
                 }
-                Msg::Updates(Err(e)) => self.update_error = Some(e),
+                Msg::Updates(Err(e)) => {
+                    self.update_error = Some(e);
+                    self.setup_runtime_on_startup();
+                }
                 Msg::NativeProgress(step) => self.native_step = Some(step),
                 Msg::Native(result) => {
                     // The last step of a build that worked says how it went.
@@ -1687,6 +1695,30 @@ impl Launcher {
     }
 
     /// Prepares the selected version using only the player's existing local files.
+    fn setup_runtime_on_startup(&mut self) {
+        if !self.startup_setup_pending
+            || self.installing.is_some()
+            || self.preparing
+            || self.client.is_some()
+            || self.starting_client.is_some()
+            || self.selected_instance().is_some_and(|i| i.java.is_some())
+        {
+            return;
+        }
+        let Some(tag) = self
+            .selected()
+            .cloned()
+            .filter(|tag| self.installed.contains(tag))
+        else {
+            return;
+        };
+        self.startup_setup_pending = false;
+        // Preparing never starts a game by itself; Play still requires a valid entered name.
+        if !backend::check_prepared(&tag) {
+            self.prepare(backend::MinecraftFrom::LocalSetup);
+        }
+    }
+
     fn prepare(&mut self, from: backend::MinecraftFrom) {
         let Some(tag) = self.selected().cloned() else {
             return;
@@ -1773,7 +1805,7 @@ impl Launcher {
         if !backend::check_prepared(&tag) {
             self.client_error = None;
             self.play_when_prepared = Some(tag);
-            self.prepare(backend::MinecraftFrom::Local);
+            self.prepare(backend::MinecraftFrom::LocalSetup);
             return;
         }
         // Native mods the start's automatic update moved on: the game they are built into is
@@ -3377,7 +3409,7 @@ impl Launcher {
             prepare = disabled(prepare);
         } else {
             prepare = prepare.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                this.prepare(backend::MinecraftFrom::Local);
+                this.prepare(backend::MinecraftFrom::LocalSetup);
                 cx.notify();
             }));
         }

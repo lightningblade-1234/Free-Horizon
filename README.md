@@ -26,6 +26,8 @@ Open the normal launcher, enter a player name, and click **Play**. The fork keep
 
 Running the released launcher needs **no Rust, Visual Studio, source checkout or Microsoft login**. The launcher installs/selects a Horizon game build and prepares the required local resources. Use **Versions** to choose a build if needed.
 
+First-time runtime setup is built into the launcher: after its startup game install, it reuses local Java or downloads the required managed Java runtime, obtains a checksum-verified public server JAR in your local cache, and runs the existing preparer. No PowerShell script or repository folder is needed for the release executable. Home stays open with progress/errors in the Console; a game starts only after you enter a valid name and click Play.
+
 If the first release is still building, check the [build workflow](https://github.com/lightningblade-1234/Free-Horizon-RustMC/actions/workflows/offline-launcher.yml). Downloadable files appear after the build and checks succeed.
 
 ## Clone and set up with one command
@@ -60,12 +62,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1 -MinecraftDi
 ## Local files needed for first preparation
 
 - An existing **Minecraft 26.3** installation with its client JAR, version JSON, libraries and assets. The usual Windows location is `%APPDATA%\.minecraft`.
-- **Java 25** for preparation. A Minecraft-managed runtime or a local JDK can be reused.
+- **Java 25** for preparation. A Minecraft-managed runtime or a local JDK is reused; the launcher obtains a managed runtime if needed.
 - The genuine **26.3 server JAR**, used to export server-side game data needed by single player. It is a preparation input; ordinary Play runs in Rust.
 
-The source setup helper handles the server JAR download and checksum check. For a downloaded launcher, see the [short setup guide](launcher/FORK-SETUP.md) for supplying the local JAR. Its pinned SHA-1 is `33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
+Both the released launcher and source setup helper handle the server JAR download and checksum check. An existing verified local JAR can also be reused. Its pinned SHA-1 is `33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
 
-Offline Play prepares only from local files. Missing inputs appear as errors in Home; use the Minecraft folder chooser or provide the requested file, then try Play again. Preparation progress and game output are available in the **Console**.
+Minecraft client files, version metadata and assets must come from your local installation; automatic setup does not authenticate or download a missing client installation. Missing inputs appear as errors in Home; use the Minecraft folder chooser or provide the requested file, then try Play again. Preparation progress and game output are available in the **Console**.
 
 ## Names and multiplayer
 
