@@ -2,7 +2,7 @@
 
 ## Download and run (Windows x64)
 
-1. Open [this fork's latest Release](https://github.com/lightningblade-1234/horizon/releases/latest).
+1. Open [this fork's latest Release](https://github.com/lightningblade-1234/Free-Horizon-RustMC/releases/latest).
 2. Download **horizon-launcher-setup.exe** and run the existing installer, or open **horizon-launcher.exe** directly.
 3. In **Home**, enter your **Offline name** and press **Play**. Use **Versions** if you need to choose/install a game build.
 

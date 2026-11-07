@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   windows:
-    if: github.repository == 'lightningblade-1234/horizon' && github.ref == 'refs/heads/main'
+    if: github.repository_owner == 'lightningblade-1234' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     timeout-minutes: 60
     permissions:
@@ -33,13 +33,6 @@ jobs:
       HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
       HORIZON_NO_AUDIO: '1'
       HORIZON_TELEMETRY_URL: 'off'
-      HORIZON_HOME: '${{ runner.temp }}/offline-${{ github.run_id }}/game'
-      HORIZON_LAUNCHER_HOME: '${{ runner.temp }}/offline-${{ github.run_id }}/launcher'
-      XDG_DATA_HOME: '${{ runner.temp }}/offline-${{ github.run_id }}/data'
-      XDG_CONFIG_HOME: '${{ runner.temp }}/offline-${{ github.run_id }}/config'
-      HORIZON_LAUNCHER_TRASH: '${{ runner.temp }}/offline-${{ github.run_id }}/trash'
-      HORIZON_LAUNCHER_CLIPBOARD: '${{ runner.temp }}/offline-${{ github.run_id }}/clipboard'
-      HORIZON_LAUNCHER_DESKTOP: '${{ runner.temp }}/offline-${{ github.run_id }}/desktop'
     defaults:
       run:
         shell: pwsh
@@ -56,6 +49,14 @@ jobs:
           shared-key: offline-launcher-windows-x64
       - name: Check the public tree
         run: python tools/check_public_tree.py
+      - name: Fresh test and launcher directories
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "offline-$env:GITHUB_RUN_ID"
+          foreach ($entry in @{HORIZON_HOME='game';HORIZON_LAUNCHER_HOME='launcher';XDG_DATA_HOME='data';XDG_CONFIG_HOME='config';HORIZON_LAUNCHER_TRASH='trash';HORIZON_LAUNCHER_CLIPBOARD='clipboard';HORIZON_LAUNCHER_DESKTOP='desktop'}.GetEnumerator()) {
+            $path = Join-Path $root $entry.Value
+            New-Item -ItemType Directory -Force $path | Out-Null
+            "$($entry.Key)=$path" | Add-Content $env:GITHUB_ENV
+          }
       - name: Test and build
         run: |
           cargo +1.95.0 test --manifest-path launcher/Cargo.toml --release --locked --lib --bins --tests
