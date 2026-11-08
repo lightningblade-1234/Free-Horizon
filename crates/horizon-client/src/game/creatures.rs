@@ -1168,6 +1168,18 @@ impl Game<'_> {
         self.init_sulfur_attribute_maps();
         let uuid = self.level.player_uuid;
         let level_id = self.dim.id();
+        // LivingEntity.isPushable reads onClimbable live; a mob's cached one
+        // is only refreshed by its own push step, so one that has not ticked
+        // yet (the first tick after a load, a fresh spawn) or has moved since
+        // would be pushed out of a ladder or scaffolding. Refreshed here, from
+        // where each mob stands now, before the snapshot others push it by.
+        let climbing: Vec<bool> = {
+            let w = self.mob_world_base(&[]);
+            self.mobs.iter().map(|m| m.on_climbable(&w)).collect()
+        };
+        for (m, climbing) in self.mobs.iter_mut().zip(climbing) {
+            m.on_climbable = climbing;
+        }
         let mut snapshot = std::mem::take(&mut self.creatures.seen_buf);
         snapshot.extend(self.mobs.iter().map(|m| seen(m, uuid)));
         let mut events = std::mem::take(&mut self.creatures.event_buf);
@@ -8370,7 +8382,7 @@ fn to_loot(stack: &ItemStack) -> horizon_world::loot::LootStack {
     }
 }
 /// A generated loot stack as a Horizon item stack.
-fn from_loot(stack: &horizon_world::loot::LootStack) -> ItemStack {
+pub(super) fn from_loot(stack: &horizon_world::loot::LootStack) -> ItemStack {
     let mut item = ItemStack {
         item: Arc::from(stack.item.as_str()),
         count: stack.count.max(1) as u32,
