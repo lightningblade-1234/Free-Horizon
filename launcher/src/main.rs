@@ -474,6 +474,10 @@ struct Launcher {
     pack_busy: bool,
     pack_log: VecDeque<String>,
     pack_error: Option<String>,
+    /// Other launchers' modpacks on this computer, offered above the imported ones, and whether
+    /// the scan for them runs now.
+    found_packs: Vec<horizon_launcher::other_launchers::Found>,
+    found_scanning: bool,
     /// The game starting now plays this pack's profile (its work folder).
     starting_pack: Option<std::path::PathBuf>,
     /// The Mods page: the browser's search, installs and updates (`mods_page.rs`).
@@ -749,6 +753,8 @@ impl Launcher {
             pack_busy: false,
             pack_log: VecDeque::new(),
             pack_error: None,
+            found_packs: Vec::new(),
+            found_scanning: false,
             starting_pack: None,
             mods: mods_page::Mods::new(cx),
             github: github_mods_page::Github::new(cx),
@@ -1182,10 +1188,10 @@ impl Launcher {
                             self.step_aside(cx);
                         }
                         Err(e) => {
-                            if e == account::NoOwner.to_string() {
+                            if e == account::NoOwner::default().to_string() {
                                 self.owner = Some(false);
                                 self.owner_screen_open = true;
-                                self.client_error = Some(account::NoOwner::in_window());
+                                self.client_error = Some(account::NoOwner::default().in_window());
                             } else {
                                 self.client_error = Some(e);
                             }
@@ -1406,6 +1412,10 @@ impl Launcher {
                     }
                 }
                 Msg::PackDone(result) => self.pack_done(result),
+                Msg::FoundPacks(found) => {
+                    self.found_scanning = false;
+                    self.found_packs = found;
+                }
                 // Old versions log their session; it never reaches the window.
                 Msg::Line(_, line) if line.contains("Session ID is") => {}
                 Msg::Line(job, line) => {
@@ -1907,6 +1917,7 @@ impl Launcher {
             };
             let command = backend::local_client_with_log(&tag, &name, &log);
             if let Some(auto) = auto {
+                backend::play_step("updating registry mods");
                 let (lines, _) = mods_page::auto_update(&[auto]);
                 if !lines.is_empty() {
                     let _ = mods_tx.send(mods_page::Event::AutoUpdated(lines, Vec::new()));
