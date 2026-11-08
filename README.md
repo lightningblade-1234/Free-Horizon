@@ -83,7 +83,9 @@ This identity supports **single-player, LAN and offline-mode servers**. Online-m
 
 The **Offline launcher release** workflow builds on relevant pushes to this fork's `main`. It can also be started from **Actions → Offline launcher release → Run workflow**.
 
-**Sync upstream** checks `horizon-rust/horizon`'s `main` every 15 minutes and can also be run manually from Actions. It merges and pushes new commits only when Git reports no conflicts. If there are conflicts, the fork is left unchanged and the workflow summary lists the files to resolve. It never force-pushes. Scheduled runs can be delayed by GitHub.
+**Sync upstream** checks `horizon-rust/horizon`'s `main`, waits until 15 minutes after its run started, then starts its next run automatically. GitHub's cron schedule remains a recovery trigger because scheduled starts can be delayed or skipped. Changes to the sync workflow/tool also start the poller. It merges and pushes new commits only when Git reports no conflicts. Conflicts leave the fork unchanged, fail the run and list the files to resolve; the next check still runs. It never force-pushes. Runner queues can delay checks.
+
+To start/restart the recurring poller, run **Sync upstream** from Actions with **keep_running** enabled. Disable the workflow to stop it. For a single check, clear **keep_running**; an existing recurring run keeps its own schedule.
 
 After a successful sync, it explicitly starts **checks**, plus a launcher release build when launcher/dependency inputs changed. These checks catch compilation/behavior failures that a clean Git merge cannot detect. Pull the updated fork locally and rerun source setup to rebuild your own executable.
 

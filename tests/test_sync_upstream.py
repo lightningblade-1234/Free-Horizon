@@ -1,3 +1,6 @@
+import contextlib
+import io
+import json
 import shutil
 import subprocess
 import tempfile
@@ -97,6 +100,27 @@ class SyncUpstreamTests(unittest.TestCase):
             su.sync(self.fork, str(self.upstream))
         self.assertEqual(su.git(self.fork, "rev-parse", "HEAD").stdout.strip(), before)
         self.assertEqual(path.read_text(), "unpublished work\n")
+
+    def test_conflicted_cli_reports_failure_and_leaves_the_fork_clean(self):
+        before = self.commit(self.fork, "shared.txt", "fork version\n")
+        su.git(self.fork, "push", "origin", "main")
+        self.commit(self.writer, "shared.txt", "upstream version\n")
+        su.git(self.writer, "push", "upstream", "main")
+        output, error = io.StringIO(), io.StringIO()
+        github_output = self.root / "github-output"
+        summary = self.root / "summary"
+        args = ["sync_upstream.py", "--root", str(self.fork), "--upstream", str(self.upstream)]
+        with mock.patch("sys.argv", args), mock.patch.dict(su.os.environ, {
+            "GITHUB_OUTPUT": str(github_output), "GITHUB_STEP_SUMMARY": str(summary),
+        }), contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            code = su.main()
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output.getvalue())["conflicts"], ["shared.txt"])
+        self.assertIn("merge conflicts", error.getvalue())
+        self.assertIn("status=conflict\n", github_output.read_text())
+        self.assertIn("shared.txt", summary.read_text())
+        self.assertEqual(self.origin_head(), before)
+        self.assertEqual(su.git(self.fork, "status", "--porcelain").stdout, "")
 
     def test_concurrent_remote_push_is_not_overwritten(self):
         self.commit(self.writer, "upstream.txt", "upstream change\n")

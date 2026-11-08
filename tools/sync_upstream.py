@@ -78,6 +78,10 @@ def main():
             if result["conflicts"]:
                 out.write("\nThe fork was not changed. Resolve these files manually:\n\n```text\n")
                 out.write("\n".join(result["conflicts"]) + "\n```\n")
+    if result["status"] == "conflict":
+        print("Upstream sync blocked by merge conflicts: " + ", ".join(result["conflicts"]),
+              file=sys.stderr)
+        return 2
     return 0
 
 
