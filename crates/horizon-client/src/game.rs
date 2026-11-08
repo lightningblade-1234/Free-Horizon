@@ -177,6 +177,7 @@ mod growth;
 mod hand;
 mod headless;
 mod hud_editor;
+mod hud_room;
 mod ime;
 mod initial_spawn;
 mod input_trace;
@@ -8041,6 +8042,10 @@ impl Game<'_> {
         self.title.is_some() && self.screen != Screen::DebugOptions
     }
     fn hud(&mut self, size: [u32; 2]) -> HudBatch {
+        // Off a world (title, options, Win, a prompt before joining) the HUD shows nothing to
+        // keep clear of; `hud_layers` fills it in once the world's HUD draws.
+        let gui = HudBatch::new(size);
+        self.ui.room = horizon_client::hud_kit::room::Room::new(gui.width, gui.height);
         // The pack prompt replaces the connecting screen (setScreen), but
         // in game it opens over the world.
         let mut batch = if (self.server_packs.prompt.is_some()
@@ -8171,6 +8176,7 @@ impl Game<'_> {
         let (wi, hi) = (w as i32, h as i32);
         let in_studio = self.studio_replay.is_some();
         let show_hud = !self.ui.hide_gui && !in_studio;
+        self.ui.room = self.hud_room(w, h, show_hud);
         // What the gameplay guide keeps off starts after the view's full overlays.
         let mut guide_from = 0;
         if show_hud {
@@ -14310,6 +14316,35 @@ impl Game<'_> {
             }
         }
         let (rain, thunder) = self.view_weather(alpha as f32);
+        // What the packs' attribute expressions read (only a pack's stack has any).
+        if self.pack.environments.is_some() {
+            let light = self.world.light(block[0], block[1], block[2]);
+            environment.set_frame(horizon_client::environment::Frame {
+                rain,
+                thunder,
+                game_time: self.world.game_time,
+                day_time: self.view_day_time(),
+                render_distance: self.streaming.radius,
+                sky_type: match self.dim {
+                    Dim::Overworld => 1,
+                    Dim::End => 2,
+                    Dim::Nether => 0,
+                },
+                dimension: match self.dim {
+                    Dim::Overworld => "minecraft:overworld",
+                    Dim::Nether => "minecraft:the_nether",
+                    Dim::End => "minecraft:the_end",
+                }
+                .to_owned(),
+                player: self.player.as_ref().map_or(camera.to_array(), |p| {
+                    [p.position.x, p.position.y, p.position.z]
+                }),
+                in_water: underwater,
+                camera: camera.to_array(),
+                sky_light: i32::from(light >> 4),
+                block_light: i32::from(light & 15),
+            });
+        }
         let mut sky = environment.sample(&horizon_client::environment::Sample {
             day_time: self.view_day_time(),
             rain,
@@ -15210,7 +15245,15 @@ impl Game<'_> {
                     }
                 }
                 let centre = self.streaming.center;
-                let far = |k: &(i32, i32, i32)| (k.0 - centre.0).pow(2) + (k.2 - centre.1).pow(2);
+                // Section keys count from the world's bottom (`origin`'s min_y + y * 16).
+                let bottom = f64::from(self.world.bottom_y());
+                let cam_y = self
+                    .player
+                    .as_ref()
+                    .map_or(4, |p| ((p.position.y - bottom) / 16.0).floor() as i32);
+                let far = |k: &(i32, i32, i32)| {
+                    (k.0 - centre.0).pow(2) + (k.1 - cam_y).pow(2) + (k.2 - centre.1).pow(2)
+                };
                 pending.sort_unstable_by_key(|(k, _)| std::cmp::Reverse(far(k)));
                 let (limit, budget) = if budgeted {
                     (
