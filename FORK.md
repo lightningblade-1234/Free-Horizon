@@ -2,6 +2,8 @@
 
 **An offline-play fork of Horizon for Minecraft: Java Edition 26.3.**
 
+This page documents this fork. The root README tracks upstream so its project-status updates and checks can merge normally.
+
 Open the normal launcher, enter a player name, and click **Play**. The fork keeps Horizon's existing Home interface, game installation, resource preparation, instance folders, Console and crash handling, with Microsoft login removed from normal Horizon Play.
 
 [Download Releases](https://github.com/lightningblade-1234/Free-Horizon-RustMC/releases) · [First-time setup](launcher/FORK-SETUP.md) · [Build workflow](https://github.com/lightningblade-1234/Free-Horizon-RustMC/actions/workflows/offline-launcher.yml)
