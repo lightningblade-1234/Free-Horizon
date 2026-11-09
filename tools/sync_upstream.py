@@ -11,6 +11,7 @@ UPSTREAM = "https://github.com/horizon-rust/horizon.git"
 
 def git(root, *args, check=True):
     return subprocess.run(["git", *args], cwd=root, check=check, text=True,
+                          encoding="utf-8",
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
@@ -24,6 +25,8 @@ def sync(root, upstream=UPSTREAM):
     before = git(root, "rev-parse", "HEAD").stdout.strip()
     if before != git(root, "rev-parse", "origin/main").stdout.strip():
         raise ValueError("The checkout must match origin/main. Retry from a fresh checkout.")
+    protect_readme = git(root, "cat-file", "-e", f"{before}:README.md", check=False).returncode == 0
+    git(root, "config", "merge.horizon-readme.driver", "true")
     git(root, "fetch", "--no-tags", upstream, "main:refs/remotes/upstream/main")
     upstream_head = git(root, "rev-parse", "upstream/main").stdout.strip()
     result = {"status": "up_to_date", "head": before, "upstream": upstream_head,
@@ -36,11 +39,22 @@ def sync(root, upstream=UPSTREAM):
     merged = git(root, "merge", "--no-ff", "--no-commit", upstream_head, check=False)
     if merged.returncode:
         conflicts = git(root, "diff", "--name-only", "--diff-filter=U").stdout.splitlines()
+        if not conflicts:
+            merged.check_returncode()
+        if protect_readme and "README.md" in conflicts:
+            git(root, "restore", "--source", before, "--staged", "--worktree", "--", "README.md")
+            conflicts.remove("README.md")
         if conflicts:
             git(root, "merge", "--abort")
             result.update(status="conflict", conflicts=conflicts)
             return result
-        merged.check_returncode()
+    if protect_readme:
+        # Cover clean incoming-only edits/deletions as well as conflicted edits.
+        git(root, "restore", "--source", before, "--staged", "--worktree", "--", "README.md")
+    upstream_readme = git(root, "show", f"{upstream_head}:README.md", check=False)
+    if upstream_readme.returncode == 0:
+        (root / "UPSTREAM.md").write_text(upstream_readme.stdout, encoding="utf-8", newline="\n")
+        git(root, "add", "--", "UPSTREAM.md")
     changed = git(root, "diff", "--cached", "--name-only").stdout.splitlines()
     result["launcher_changed"] = any(
         path.startswith(("launcher/", "crates/", "packaging/icons/")) or path in

@@ -76,9 +76,59 @@ class SyncUpstreamTests(unittest.TestCase):
         self.assertEqual(result["status"], "updated")
         self.assertFalse(result["launcher_changed"])
 
+    def test_fork_readme_is_preserved_and_upstream_documentation_is_mirrored(self):
+        self.commit(self.writer, "README.md", "# Shared\nBase documentation\n")
+        su.git(self.writer, "push", "upstream", "main")
+        su.git(self.writer, "push", "origin", "main")
+        su.git(self.fork, "pull", "--ff-only")
+        fork_text = "# Free Horizon RustMC\nOffline setup — this fork's main page\n"
+        before = self.commit(self.fork, "README.md", fork_text)
+        su.git(self.fork, "push", "origin", "main")
+        upstream_text = "# Horizon\nUpdated upstream documentation — café\n"
+        self.commit(self.writer, "README.md", upstream_text)
+        self.commit(self.writer, "code.txt", "new upstream code\n")
+        su.git(self.writer, "push", "upstream", "main")
+        result = su.sync(self.fork, str(self.upstream))
+        self.assertEqual(result["status"], "updated")
+        self.assertEqual((self.fork / "README.md").read_text(encoding="utf-8"), fork_text)
+        self.assertEqual((self.fork / "UPSTREAM.md").read_text(encoding="utf-8"), upstream_text)
+        self.assertEqual((self.fork / "code.txt").read_text(), "new upstream code\n")
+        self.assertEqual(su.git(self.fork, "diff", before, "HEAD", "--", "README.md").stdout, "")
+        self.assertEqual(self.origin_head(), result["head"])
+        self.assertEqual(su.git(self.fork, "status", "--porcelain").stdout, "")
+
+    def test_clean_upstream_readme_edit_keeps_the_original_main_page(self):
+        self.commit(self.writer, "README.md", "# Fork main page\n")
+        su.git(self.writer, "push", "upstream", "main")
+        su.git(self.writer, "push", "origin", "main")
+        su.git(self.fork, "pull", "--ff-only")
+        self.commit(self.writer, "README.md", "# Incoming documentation\n")
+        su.git(self.writer, "push", "upstream", "main")
+        result = su.sync(self.fork, str(self.upstream))
+        self.assertEqual(result["status"], "updated")
+        self.assertEqual((self.fork / "README.md").read_text(), "# Fork main page\n")
+        self.assertEqual((self.fork / "UPSTREAM.md").read_text(), "# Incoming documentation\n")
+
+    def test_upstream_readme_deletion_keeps_the_fork_main_page(self):
+        self.commit(self.writer, "README.md", "# Fork main page\n")
+        su.git(self.writer, "push", "upstream", "main")
+        su.git(self.writer, "push", "origin", "main")
+        su.git(self.fork, "pull", "--ff-only")
+        self.commit(self.fork, "README.md", "# Customized fork page\n")
+        su.git(self.fork, "push", "origin", "main")
+        su.git(self.writer, "rm", "README.md")
+        su.git(self.writer, "commit", "-m", "remove upstream readme")
+        su.git(self.writer, "push", "upstream", "main")
+        result = su.sync(self.fork, str(self.upstream))
+        self.assertEqual(result["status"], "updated")
+        self.assertEqual((self.fork / "README.md").read_text(), "# Customized fork page\n")
+        self.assertEqual(su.git(self.fork, "status", "--porcelain").stdout, "")
+
     def test_conflict_leaves_the_fork_and_remote_unchanged(self):
+        self.commit(self.fork, "README.md", "fork main page\n")
         before = self.commit(self.fork, "shared.txt", "fork version\n")
         su.git(self.fork, "push", "origin", "main")
+        self.commit(self.writer, "README.md", "upstream main page\n")
         self.commit(self.writer, "shared.txt", "upstream version\n")
         su.git(self.writer, "push", "upstream", "main")
         result = su.sync(self.fork, str(self.upstream))
@@ -87,6 +137,7 @@ class SyncUpstreamTests(unittest.TestCase):
         self.assertEqual(self.origin_head(), before)
         self.assertEqual(su.git(self.fork, "rev-parse", "HEAD").stdout.strip(), before)
         self.assertEqual((self.fork / "shared.txt").read_text(), "fork version\n")
+        self.assertEqual((self.fork / "README.md").read_text(), "fork main page\n")
         self.assertEqual(su.git(self.fork, "status", "--porcelain").stdout, "")
 
     def test_dirty_checkout_and_unpublished_work_are_preserved(self):

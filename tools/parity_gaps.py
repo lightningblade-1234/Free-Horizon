@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-README = ROOT / "README.md"
+README = ROOT / "UPSTREAM.md"
 REPO = "horizon-rust/horizon"
 # The gap lists, one per area, filed from the port ledger on 2026-10-28 (#3859 step 5).
 ISSUES = list(range(3512, 3522))
@@ -105,7 +105,7 @@ def main(argv: list[str]) -> int:
             return 0
         text = README.read_text(encoding="utf-8")
         README.write_text(rewrite(text, new, sum(l["open"] for l in lists)), encoding="utf-8")
-        print("README.md: gap block written")
+        print("UPSTREAM.md: gap block written")
         return 0
     print(__doc__, file=sys.stderr)
     return 2

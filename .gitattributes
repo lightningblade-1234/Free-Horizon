@@ -6,3 +6,5 @@ crates/horizon-theme/tokens.css text eol=lf
 docs/api/*-reference.md text eol=lf
 # Configure merge.horizon-lang.driver with tools/merge_lang.py before merging.
 launcher/lang/*.json merge=horizon-lang
+# The fork's main page belongs to this fork; upstream documentation is mirrored separately.
+README.md merge=horizon-readme

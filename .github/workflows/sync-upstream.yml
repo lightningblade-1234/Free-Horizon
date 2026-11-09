@@ -47,6 +47,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git config core.hooksPath .githooks
           git config merge.horizon-lang.driver 'python tools/merge_lang.py %O %A %B'
+          git config merge.horizon-readme.driver true
       - name: Merge and push only without conflicts
         id: merge
         run: python tools/sync_upstream.py
