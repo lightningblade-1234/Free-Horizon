@@ -14,9 +14,11 @@ Runtime prerequisites are set up automatically in the normal launcher, without P
 a source checkout. It installs/selects a Horizon build, reuses local Java or obtains managed
 **Java 25**, downloads a checksum-verified public server JAR into your local cache when needed,
 and prepares from your own **Minecraft 26.3** installation (normally `%APPDATA%\.minecraft`).
-Progress and failures appear in the existing Console/Home interface. If local Minecraft client
-files or version metadata are missing, use the Minecraft folder chooser and supply the requested
-file; the launcher does not authenticate or download those missing client files.
+Progress and failures appear in the existing Console/Home interface. After finding a matching local
+client JAR, setup reuses its version JSON or downloads the checksum-verified public JSON into
+Horizon's cache when metadata is missing or rewritten. Your launcher's metadata is preserved.
+If local Minecraft client files are missing, use the Minecraft folder chooser and supply the
+requested files; the launcher does not authenticate or download those missing client files.
 
 An existing server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` or at
 `HORIZON_SERVER_JAR` can be reused after checksum verification. The 26.3 pin is

@@ -9,6 +9,8 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
+mod minecraft_sources;
+
 pub const REPO: &str = "horizon-rust/horizon";
 pub const README_URL: &str = "https://github.com/horizon-rust/horizon/blob/main/launcher/README.md";
 /// The players' page on connecting an AI agent (the website's docs/agents.md).
@@ -2424,7 +2426,7 @@ fn assets_folder(
 pub enum MinecraftFrom {
     /// Existing local files only: no credentials, metadata fetches or download fallback.
     Local,
-    /// Local client files, automatically obtaining missing public Java/server-JAR prerequisites.
+    /// Local client files, obtaining missing public metadata, Java and server-JAR prerequisites.
     LocalSetup,
     /// The player's own install (any launcher's); Mojang only when none has the version and an
     /// account that owns the game is signed in.
@@ -2496,34 +2498,16 @@ pub fn preparer(
                 .map(|f| sources::known_folders(sources::Os::current(), &f))
                 .unwrap_or_default(),
         );
-        let fetch = |url: &str| -> Result<Vec<u8>, String> {
-            let mut body = Vec::new();
-            get(url)?
-                .into_reader()
-                .read_to_end(&mut body)
-                .map_err(|e| e.to_string())?;
-            Ok(body)
-        };
-        let offline_fetch = |url: &str| -> Result<Vec<u8>, String> {
-            Err(crate::i18n::trf(
-                "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
-                &[("url", url)],
-            ))
-        };
-        let fetch: sources::Fetch =
-            if matches!(from, MinecraftFrom::Local | MinecraftFrom::LocalSetup) {
-                &offline_fetch
-            } else {
-                &fetch
-            };
+        let fetch: sources::Fetch = &fetch_bytes;
         let linked = data_dir().join("linked-minecraft");
         if from == MinecraftFrom::Mojang {
             // Straight from Mojang (what is already there and whole is kept), for an owner only.
-            download_for_owner(&pins, &own, &fetch, log)
+            download_for_owner(&pins, &own, fetch, log)
                 .map_err(|e| e.trim_start_matches("\n  • ").to_string())?;
             own
         } else {
-            let resolved = sources::resolve(minecraft, &pins, &known, &linked, &fetch, log);
+            let resolved =
+                minecraft_sources::resolve(from, minecraft, &pins, &known, &linked, fetch, log);
             if reused {
                 assets_folder(resolved, &chosen, &version, log)
             } else {
@@ -2534,7 +2518,7 @@ pub fn preparer(
                         if matches!(from, MinecraftFrom::Local | MinecraftFrom::LocalSetup) {
                             return Err(not_found);
                         }
-                        download_for_owner(&pins, &own, &fetch, log).map_err(|e| not_found + &e)?;
+                        download_for_owner(&pins, &own, fetch, log).map_err(|e| not_found + &e)?;
                         own
                     }
                 }

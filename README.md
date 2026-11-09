@@ -61,13 +61,13 @@ powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1 -MinecraftDi
 
 ## Local files needed for first preparation
 
-- An existing **Minecraft 26.3** installation with its client JAR, version JSON, libraries and assets. The usual Windows location is `%APPDATA%\.minecraft`.
+- An existing **Minecraft 26.3** installation with its client JAR, libraries and assets. The usual Windows location is `%APPDATA%\.minecraft`. Automatic setup reuses a matching local version JSON or obtains a checksum-verified copy when it is missing or rewritten by another launcher.
 - **Java 25** for preparation. A Minecraft-managed runtime or a local JDK is reused; the launcher obtains a managed runtime if needed.
 - The genuine **26.3 server JAR**, used to export server-side game data needed by single player. It is a preparation input; ordinary Play runs in Rust.
 
 Both the released launcher and source setup helper handle the server JAR download and checksum check. An existing verified local JAR can also be reused. Its pinned SHA-1 is `33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
 
-Minecraft client files, version metadata and assets must come from your local installation; automatic setup does not authenticate or download a missing client installation. Missing inputs appear as errors in Home; use the Minecraft folder chooser or provide the requested file, then try Play again. Preparation progress and game output are available in the **Console**.
+Minecraft client files and assets must come from your local installation. Once a matching client JAR is found, automatic setup can download the public version JSON into Horizon's managed cache without changing your launcher's metadata. It does not authenticate or download a missing client installation. Missing local inputs appear as errors in Home; use the Minecraft folder chooser or provide the requested file, then try Play again. Preparation progress and game output are available in the **Console**.
 
 ## Names and multiplayer
 

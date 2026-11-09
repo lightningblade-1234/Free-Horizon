@@ -391,17 +391,12 @@ fn offline_preparation_cannot_fetch_a_missing_pinned_manifest() {
     let minecraft = home.local_inputs();
     fs::remove_file(minecraft.join("versions/9.9/9.9.json")).unwrap();
     let lines = Mutex::new(Vec::new());
-    for from in [
-        backend::MinecraftFrom::Local,
-        backend::MinecraftFrom::LocalSetup,
-    ] {
-        let error = backend::preparer(TAG, &minecraft, from, &|line| {
-            lines.lock().unwrap().push(line);
-        })
-        .err()
-        .expect("missing metadata must not be downloaded");
-        assert!(error.contains("local Minecraft version JSON"), "{error}");
-    }
+    let error = backend::preparer(TAG, &minecraft, backend::MinecraftFrom::Local, &|line| {
+        lines.lock().unwrap().push(line);
+    })
+    .err()
+    .expect("strict-local preparation must not download missing metadata");
+    assert!(error.contains("local Minecraft version JSON"), "{error}");
     assert!(lines
         .lock()
         .unwrap()
