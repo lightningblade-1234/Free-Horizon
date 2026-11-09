@@ -77,3 +77,14 @@ class TranslationMergeTests(unittest.TestCase):
             self.assertEqual(json.loads((root / "lang.json").read_text(encoding="utf-8")),
                              {"label": "Étiquette", "stable": "stable", "offline": "Hors ligne"})
             self.assertEqual(git("status", "--porcelain"), "")
+
+    def test_explicit_local_resolution_retains_independent_upstream_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = [Path(tmp) / name for name in ("base", "ours", "theirs")]
+            tables = ({"deleted": "old", "label": "old"}, {"label": "old"},
+                      {"deleted": "translated", "label": "translated"})
+            for path, values in zip(paths, tables):
+                path.write_text(json.dumps(values), encoding="utf-8")
+            self.assertEqual(merge_lang.main(["--keep-local-conflicts", *paths]), 0)
+            self.assertEqual(json.loads(paths[1].read_text(encoding="utf-8")),
+                             {"label": "translated"})

@@ -38,15 +38,22 @@ def merge(base, ours, theirs):
 
 def main(args=None):
     args = sys.argv[1:] if args is None else args
+    keep_local = bool(args and args[0] == "--keep-local-conflicts")
+    if keep_local:
+        args = args[1:]
     if len(args) != 3:
-        print("usage: merge_lang.py BASE OURS THEIRS", file=sys.stderr)
+        print("usage: merge_lang.py [--keep-local-conflicts] BASE OURS THEIRS", file=sys.stderr)
         return 2
     try:
         base, ours, theirs = (table(path) for path in args)
         result, conflicts = merge(base, ours, theirs)
-        if conflicts:
+        if conflicts and not keep_local:
             print("Conflicting translations: " + ", ".join(conflicts), file=sys.stderr)
             return 1
+        # Explicit manual resolution only; the automatic Git driver never sets this flag.
+        for key in conflicts:
+            if key in ours:
+                result[key] = ours[key]
         Path(args[1]).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
                                  encoding="utf-8", newline="\n")
     except (OSError, ValueError) as error:
