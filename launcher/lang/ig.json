@@ -1256,6 +1256,8 @@
   "{mods} didn't build on the Horizon you play: building on the one they were made for": "{mods} ewughị na Horizon ị na-egwu: na-ewu na nke e mere ha maka ya",
   "In the last build, on Horizon {commit} for {mods}, not on {horizon}": "Na nwube ikpeazụ, na Horizon {commit} maka {mods}, ọ bụghị na {horizon}",
   "In the last build, on {horizon}": "Na nwube ikpeazụ, na {horizon}",
+  "Duplicate native mod {id}.": "Duplicate native mod {id}.",
+  "Native and content mod ids differ.": "Native and content mod ids differ.",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",
