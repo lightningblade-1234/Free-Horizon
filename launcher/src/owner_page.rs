@@ -73,10 +73,6 @@ impl Launcher {
             .child(line(
                 "No Minecraft install needed: Horizon downloads it from Mojang for your account.",
                 n.ink_soft,
-            ))
-            .child(line(
-                "Your worlds, offline names and settings stay where they are.",
-                n.muted,
             ));
         let raised = || {
             div()
@@ -315,10 +311,7 @@ impl Launcher {
                     )))
                     .child(ui::text(14., FontWeight::NORMAL, ink::BODY).child(tr(
                         "No Minecraft install needed: Horizon downloads it from Mojang for your account.",
-                    )))
-                    .child(ui::text(14., FontWeight::NORMAL, ink::QUIET).child(tr(
-                        "Your worlds, offline names and settings stay where they are.",
-                    ))),
+))),
             );
         card = match state {
             Shown::Code(uri, user_code) => {
