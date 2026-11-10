@@ -35,7 +35,7 @@ impl<T> Marks<T> {
             self.replaced
                 .extend(self.baked.drain().map(|(_, (_, mark))| mark));
         }
-        if !self.baked.get(id).is_some_and(|(h, _)| h == hash) {
+        if self.baked.get(id).is_none_or(|(h, _)| h != hash) {
             let fresh = (hash.to_owned(), bake());
             if let Some((_, old)) = self.baked.insert(id.to_owned(), fresh) {
                 self.replaced.push(old);
