@@ -34,18 +34,20 @@ jobs:
   # One job, not one per check: each job takes a runner from the organisation's shared pool, and with every pull request
   # and every merge to main starting this workflow, three jobs a run left the pool's queue tens of minutes deep.
   #
-  # Where (docs/ci-runners.md): our checks runners (label horizon-checks: the desktop's, an isolated user, so a fork's
-  # pull request runs there too) take the pull requests whose number ends in 0 or 1, about what their three runners
-  # can do; GitHub's runners take the others and main's pushes (which also save the Rust cache GitHub's pull request
-  # runs read), so both pools work at once. The repository variable SELF_HOSTED_CI moves them: `all` every job to
-  # ours, `light` (the desktop paused) or `off` every job to GitHub's. On ours the build folder persists
+  # Where (docs/ci-runners.md): our checks runners (label horizon-checks: the desktop's) take this repository's own
+  # pull requests whose number ends in 0 or 1, about what their three runners can do; GitHub's runners take the others,
+  # forks' pull requests and main's pushes (which also save the Rust cache GitHub's pull request runs read), so both
+  # pools work at once. The repository variable SELF_HOSTED_CI moves them: `all` every job to ours, `light` (the
+  # desktop paused) or `off` every job to GitHub's. A fork's pull request sees no repository variable, so no switch
+  # could move it off a machine that is off: it always runs on GitHub's. On ours the build folder persists
   # (CARGO_TARGET_DIR, outside the checkout), so the apt packages, Python and the Rust cache steps are GitHub's only.
   verify:
     runs-on: >-
       ${{ vars.SELF_HOSTED_CI != 'off' && vars.SELF_HOSTED_CI != 'light' && (vars.SELF_HOSTED_CI == 'all' ||
-      github.event_name == 'pull_request' && (endsWith(format('{0}', github.event.pull_request.number), '0') ||
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+      (endsWith(format('{0}', github.event.pull_request.number), '0') ||
       endsWith(format('{0}', github.event.pull_request.number), '1'))) &&
-      fromJSON('["self-hosted", "linux", "horizon-checks"]') || 'ubuntu-latest' }}
+      fromJSON('["self-hosted", "linux", "horizon-checks"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -115,7 +117,7 @@ jobs:
           fi
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
       # Dependencies and the workspace's own build, saved from main's runs (pull requests read main's cache).
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: steps.rust.outputs.required != 'false' && runner.environment == 'github-hosted'
         with:
           shared-key: verify
@@ -124,31 +126,32 @@ jobs:
         if: steps.rust.outputs.required != 'false'
         run: |
           cargo +stable fmt --all -- --check
-          cargo +stable clippy --workspace --all-targets -- -D warnings
+          cargo +stable clippy --workspace --all-targets --locked -- -D warnings
           # The server build (released as horizon-engine): the game without sound or controllers.
-          cargo +stable clippy -p horizon-client --all-targets --no-default-features -- -D warnings
+          cargo +stable clippy -p horizon-client --all-targets --locked --no-default-features -- -D warnings
       # Libraries, binaries and integration tests, then doc tests: not the ~275 examples, which clippy above already
       # type-checks and the parity job builds and runs (they were most of this step's build and link time).
-      # cargo test, not nextest: nextest's process per test reloads each binary's shared tables for every test, and on
+      # cargo test --locked, not nextest: nextest's process per test reloads each binary's shared tables for every test, and on
       # these 4-core runners it was no faster (#4978).
       - name: Test Rust core and voxel kernel correctness
         if: steps.rust.outputs.required != 'false'
         run: |
-          cargo +stable test --workspace --lib --bins --tests
+          cargo +stable test --locked --workspace --lib --bins --tests
           # The full content-root tests (#[ignore]d: minutes each on a laptop). The same build as above; they need the
           # prepared vanilla data, so without it they pass at once. Keep the target selection identical to avoid
           # recompiling the workspace with a different dependency graph.
-          cargo +stable test --workspace --lib --bins --tests mod_content::tests:: -- --ignored
-          cargo +stable test --workspace --doc
+          cargo +stable test --locked --workspace --lib --bins --tests mod_content::tests:: -- --ignored
+          cargo +stable test --locked --workspace --doc
   # The launcher is its own workspace (launcher/Cargo.toml), so verify's cargo runs never build it. A pull request that
   # changes it or a crate it builds is checked here, and so is every push to main: two pull requests can each pass
   # alone and break it together (#2059 and the registry ratings did, 2026-10-26).
   launcher:
     runs-on: >-
       ${{ vars.SELF_HOSTED_CI != 'off' && vars.SELF_HOSTED_CI != 'light' && (vars.SELF_HOSTED_CI == 'all' ||
-      github.event_name == 'pull_request' && (endsWith(format('{0}', github.event.pull_request.number), '0') ||
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+      (endsWith(format('{0}', github.event.pull_request.number), '0') ||
       endsWith(format('{0}', github.event.pull_request.number), '1'))) &&
-      fromJSON('["self-hosted", "linux", "horizon-checks"]') || 'ubuntu-latest' }}
+      fromJSON('["self-hosted", "linux", "horizon-checks"]') || 'ubuntu-24.04' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -171,7 +174,7 @@ jobs:
               libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev
           fi
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: steps.launcher.outputs.required != 'false' && runner.environment == 'github-hosted'
         with:
           workspaces: launcher
@@ -204,13 +207,14 @@ jobs:
         run: |
           $cores = (Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
           "CARGO_BUILD_JOBS=$cores" >> $env:GITHUB_ENV
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable, 2026-11
         with:
+          toolchain: stable
           targets: aarch64-pc-windows-msvc
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: windows-arm64-game
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: launcher
           shared-key: windows-arm64-launcher
@@ -670,6 +674,8 @@ jobs:
         env:
           RUSTUP_TOOLCHAIN: stable
         run: python tools/test_float_log_parity.py
+  # JFR analysis uses JDK-generated fixture recordings on the self-hosted Linux runner.
+  # Start a manual checks dispatch with: gh workflow run checks --ref <branch>.
   jfr-analysis:
     if: github.event_name == 'workflow_dispatch' && !inputs.source_only
     runs-on: [self-hosted, linux, horizon-game]
