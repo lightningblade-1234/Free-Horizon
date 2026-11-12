@@ -4,7 +4,7 @@
 
 Open the normal launcher, enter a player name, and click **Play**. The fork keeps Horizon's existing Home interface, game installation, resource preparation, instance folders, Console and crash handling, with Microsoft login removed from normal Horizon Play.
 
-[Download Releases](https://github.com/lightningblade-1234/Free-Horizon-RustMC/releases) · [First-time setup](launcher/FORK-SETUP.md) · [Build workflow](https://github.com/lightningblade-1234/Free-Horizon-RustMC/actions/workflows/offline-launcher.yml)
+[Download Releases](https://github.com/lightningblade-1234/Free-Horizon/releases) · [First-time setup](launcher/FORK-SETUP.md) · [Build workflow](https://github.com/lightningblade-1234/Free-Horizon/actions/workflows/offline-launcher.yml)
 
 ## What this fork changes
 
@@ -19,7 +19,7 @@ Open the normal launcher, enter a player name, and click **Play**. The fork keep
 
 ## Download and run — Windows x64
 
-1. Open [Releases](https://github.com/lightningblade-1234/Free-Horizon-RustMC/releases/latest).
+1. Open [Releases](https://github.com/lightningblade-1234/Free-Horizon/releases/latest).
 2. Download **`horizon-launcher-setup.exe`** to install, or **`horizon-launcher.exe`** to run directly. A ZIP and SHA-256 checksums are also provided.
 3. Open **Home**, enter your **Offline name**, and press **Play**.
 4. Choose **Singleplayer** in the game to create or open a world.
@@ -28,11 +28,11 @@ Running the released launcher needs **no Rust, Visual Studio, source checkout or
 
 First-time runtime setup is built into the launcher: after its startup game install, it reuses local Java or downloads the required managed Java runtime, obtains a checksum-verified public server JAR in your local cache, and runs the existing preparer. No PowerShell script or repository folder is needed for the release executable. Home stays open with progress/errors in the Console; a game starts only after you enter a valid name and click Play.
 
-If the first release is still building, check the [build workflow](https://github.com/lightningblade-1234/Free-Horizon-RustMC/actions/workflows/offline-launcher.yml). Downloadable files appear after the build and checks succeed.
+If the first release is still building, check the [build workflow](https://github.com/lightningblade-1234/Free-Horizon/actions/workflows/offline-launcher.yml). Downloadable files appear after the build and checks succeed.
 
 ## Download and run — Linux x86_64
 
-Use the native Linux release directly. Download **`horizon-launcher-linux-x86_64.AppImage`** from [Releases](https://github.com/lightningblade-1234/Free-Horizon-RustMC/releases/latest), then run:
+Use the native Linux release directly. Download **`horizon-launcher-linux-x86_64.AppImage`** from [Releases](https://github.com/lightningblade-1234/Free-Horizon/releases/latest), then run:
 
 ```sh
 chmod +x horizon-launcher-linux-x86_64.AppImage
@@ -50,8 +50,8 @@ Open **Home**, enter your **Offline name**, and press **Play**. The Linux launch
 For users who want to build the launcher themselves:
 
 ```powershell
-git clone https://github.com/lightningblade-1234/Free-Horizon-RustMC.git
-Set-Location Free-Horizon-RustMC
+git clone https://github.com/lightningblade-1234/Free-Horizon.git
+Set-Location Free-Horizon
 powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1
 ```
 
