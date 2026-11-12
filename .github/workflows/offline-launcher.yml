@@ -6,6 +6,7 @@ on:
     paths:
       - 'launcher/**'
       - 'crates/**'
+      - 'packaging/linux/**'
       - 'packaging/icons/**'
       - 'tools/setup_launcher.ps1'
       - '.github/workflows/offline-launcher.yml'
@@ -18,21 +19,21 @@ concurrency:
   group: offline-launcher-release
   cancel-in-progress: false
 
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_BUILD_JOBS: '4'
+  # Compiled in: downloaded launchers stay on this fork's release channel.
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
+  HORIZON_NO_AUDIO: '1'
+  HORIZON_TELEMETRY_URL: 'off'
+
 jobs:
   windows:
     if: github.repository_owner == 'lightningblade-1234' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     timeout-minutes: 60
-    permissions:
-      contents: write
     env:
-      CARGO_INCREMENTAL: '0'
-      CARGO_BUILD_JOBS: '4'
       RUSTFLAGS: '-C target-feature=+crt-static'
-      # Compiled in: opening the downloaded EXE needs no environment-variable setup.
-      HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
-      HORIZON_NO_AUDIO: '1'
-      HORIZON_TELEMETRY_URL: 'off'
     defaults:
       run:
         shell: pwsh
@@ -81,9 +82,6 @@ jobs:
           Copy-Item dist/package/horizon-launcher.exe dist/horizon-launcher.exe
           # Reuse the existing Windows installer, selected by its executable name.
           Copy-Item dist/horizon-launcher.exe dist/horizon-launcher-setup.exe
-          $assets = Get-Item dist/horizon-launcher.exe, dist/horizon-launcher-setup.exe, dist/horizon-offline-launcher-windows-x64.zip
-          $sums = $assets | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)" }
-          $sums | Set-Content -Encoding ascii dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:
           name: offline-launcher-windows-x64
@@ -91,32 +89,128 @@ jobs:
             dist/horizon-launcher.exe
             dist/horizon-launcher-setup.exe
             dist/horizon-offline-launcher-windows-x64.zip
-            dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 3
+
+  linux:
+    if: github.repository_owner == 'lightningblade-1234' && github.ref == 'refs/heads/main'
+    # Keep the upstream glibc 2.35 baseline for Ubuntu 22.04 / Debian 12 and newer.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.95.0'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher
+          shared-key: offline-launcher-linux-x86_64
+      - name: Linux libraries GPUI links to
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev patchelf mesa-vulkan-drivers xvfb xauth
+      - name: Check the public tree
+        run: python3 tools/check_public_tree.py
+      - name: Fresh test and launcher directories
+        run: |
+          root=$(mktemp -d "$RUNNER_TEMP/offline-linux.XXXXXX")
+          for entry in HORIZON_HOME:game HORIZON_LAUNCHER_HOME:launcher XDG_DATA_HOME:data XDG_CONFIG_HOME:config XDG_RUNTIME_DIR:runtime HORIZON_LAUNCHER_TRASH:trash HORIZON_LAUNCHER_CLIPBOARD:clipboard HORIZON_LAUNCHER_DESKTOP:desktop; do
+            name=${entry%%:*}
+            path="$root/${entry#*:}"
+            mkdir -p "$path"
+            echo "$name=$path" >> "$GITHUB_ENV"
+          done
+          chmod 700 "$root/runtime"
+      - name: Test and build
+        run: |
+          cargo +1.95.0 test --manifest-path launcher/Cargo.toml --release --locked --lib --bins --tests
+          cargo +1.95.0 build --manifest-path launcher/Cargo.toml --release --locked
+      - name: Verify the native executable
+        run: |
+          binary=launcher/target/release/horizon-launcher
+          file "$binary" | grep -q 'ELF 64-bit.*x86-64'
+          ldd "$binary" | tee "$RUNNER_TEMP/launcher-libraries.txt"
+          if grep -Eq 'not found|/nix/store' "$RUNNER_TEMP/launcher-libraries.txt"; then
+            echo '::error::Launcher has missing or non-portable libraries'
+            exit 1
+          fi
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("launcher/Cargo.toml", "rb"))["package"]["version"])')
+          test "$("$binary" --version)" = "horizon-launcher $version"
+          "$binary" links --json
+      - name: Package the native launcher and AppImage
+        run: |
+          mkdir -p dist/package
+          cp launcher/target/release/horizon-launcher dist/package/
+          chmod 755 dist/package/horizon-launcher
+          cp LICENSE THIRD_PARTY_NOTICES.md launcher/FORK-SETUP.md dist/package/
+          tar -czf dist/horizon-offline-launcher-linux-x86_64.tar.gz -C dist/package .
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("launcher/Cargo.toml", "rb"))["package"]["version"])')
+          # Upstream's packager bundles GPUI libraries and smoke-tests the image without FUSE.
+          bash packaging/linux/appimage.sh launcher/target/release/horizon-launcher "$version" dist
+      - name: Verify the AppImage opens and draws its UI
+        env:
+          HORIZON_LAUNCHER_BENCH: ${{ runner.temp }}/offline-launcher-ui.json
+        run: |
+          # Existing benchmark mode draws, switches pages, writes measurements and quits.
+          # Xvfb and Mesa exercise a real window and renderer on the headless runner.
+          xvfb-run -a timeout 90s dist/horizon-launcher-linux-x86_64.AppImage --appimage-extract-and-run
+          python3 -c 'import json, os; result = json.load(open(os.environ["HORIZON_LAUNCHER_BENCH"])); assert result["first_frame_epoch_ms"] > 0, result; assert result["ui_ms"], result'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: offline-launcher-linux-x86_64
+          path: |
+            dist/horizon-launcher-linux-x86_64.AppImage
+            dist/horizon-offline-launcher-linux-x86_64.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: offline-launcher-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums for both platforms
+        working-directory: dist
+        run: |
+          sha256sum horizon-launcher.exe horizon-launcher-setup.exe horizon-offline-launcher-windows-x64.zip horizon-launcher-linux-x86_64.AppImage horizon-offline-launcher-linux-x86_64.tar.gz > SHA256SUMS.txt
       - name: Publish to this fork's Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "offline-launcher-$env:GITHUB_RUN_NUMBER"
-          $notes = @"
+          tag="offline-launcher-$GITHUB_RUN_NUMBER"
+          cat > dist/notes.md <<EOF
           > 🤖 Published automatically for lightningblade-1234's fork by the agent-authored GitHub Actions workflow (OpenCode, GPT-6.1 Sol).
 
-          Download **horizon-launcher-setup.exe** to install, or **horizon-launcher.exe** to run directly.
-          Open Home, enter your offline name, and press Play. No Rust, Visual Studio or Microsoft login is needed to run this launcher.
+          **Windows x64:** download **horizon-launcher-setup.exe** to install, or **horizon-launcher.exe** to run directly. Embedded DirectX shaders and C runtime.
+
+          **Linux x86_64:** download **horizon-launcher-linux-x86_64.AppImage**, make it executable with \`chmod +x horizon-launcher-linux-x86_64.AppImage\`, and run it directly. Use \`--appimage-extract-and-run\` if FUSE is unavailable. A native **horizon-offline-launcher-linux-x86_64.tar.gz** is also provided. Ubuntu 22.04 / Debian 12 or newer (glibc 2.35+), with a working graphics driver.
+
+          Open Home, enter your offline name, and press Play. No Rust, source checkout or Microsoft login is needed to run this launcher.
 
           Supply your own Minecraft files locally; no Mojang JARs, assets or prepared game data are included in these downloads.
-          [First-time setup](https://github.com/$env:GITHUB_REPOSITORY/blob/main/launcher/FORK-SETUP.md).
+          [First-time setup](https://github.com/$GITHUB_REPOSITORY/blob/main/launcher/FORK-SETUP.md).
 
-          Built from commit $env:GITHUB_SHA. Windows x64; embedded DirectX shaders and C runtime.
+          Built from commit $GITHUB_SHA. Native Windows x64 and Linux x86_64 launchers.
 
           🤖 Generated with [OpenCode](https://opencode.ai) and GitHub Actions.
-          "@
-          $notes | Set-Content -Encoding utf8 dist/notes.md
-          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag dist/horizon-launcher.exe dist/horizon-launcher-setup.exe dist/horizon-offline-launcher-windows-x64.zip dist/SHA256SUMS.txt --clobber --repo $env:GITHUB_REPOSITORY
-          } else {
-            gh release create $tag dist/horizon-launcher.exe dist/horizon-launcher-setup.exe dist/horizon-offline-launcher-windows-x64.zip dist/SHA256SUMS.txt --target $env:GITHUB_SHA --title "Horizon Offline Launcher - Windows x64 (build $env:GITHUB_RUN_NUMBER)" --notes-file dist/notes.md --latest --repo $env:GITHUB_REPOSITORY
-          }
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          EOF
+          assets=(dist/*.exe dist/*.zip dist/*.AppImage dist/*.tar.gz dist/SHA256SUMS.txt)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$tag" --title "Horizon Offline Launcher - Windows + Linux (build $GITHUB_RUN_NUMBER)" --notes-file dist/notes.md --latest --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "${assets[@]}" --target "$GITHUB_SHA" --title "Horizon Offline Launcher - Windows + Linux (build $GITHUB_RUN_NUMBER)" --notes-file dist/notes.md --latest --repo "$GITHUB_REPOSITORY"
+          fi
