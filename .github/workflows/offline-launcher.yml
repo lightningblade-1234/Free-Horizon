@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: offline-launcher-release
+  group: offline-launcher-${{ github.ref == 'refs/heads/main' && 'release' || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -209,7 +209,8 @@ jobs:
           python-version: '3.13'
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.95.0'
+          # GPUI's Mac backend uses Option::map_or_default, stable since Rust 1.98.
+          toolchain: '1.98.0'
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -233,8 +234,8 @@ jobs:
           if ! xcrun metal --version > /dev/null 2>&1; then
             features=(--features gpui_platform/runtime_shaders)
           fi
-          cargo +1.95.0 test --manifest-path launcher/Cargo.toml --release --locked --target "$MAC_TARGET" --lib --bins --tests "${features[@]}"
-          cargo +1.95.0 build --manifest-path launcher/Cargo.toml --release --locked --target "$MAC_TARGET" "${features[@]}"
+          cargo +1.98.0 test --manifest-path launcher/Cargo.toml --release --locked --target "$MAC_TARGET" --lib --bins --tests "${features[@]}"
+          cargo +1.98.0 build --manifest-path launcher/Cargo.toml --release --locked --target "$MAC_TARGET" "${features[@]}"
       - name: Verify architecture, libraries and startup
         run: |
           test "$(lipo -archs "$MAC_BINARY")" = "$MAC_CPU"

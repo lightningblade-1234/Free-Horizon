@@ -77,12 +77,12 @@ Launcher settings/builds/cache default to `~/Library/Application Support/horizon
 
 ### Build from source on macOS
 
-Install Xcode Command Line Tools and Rust, then run from the repository folder:
+Install Xcode Command Line Tools and Rust **1.98.0 or newer** (required by GPUI's Mac backend), then run from the repository folder:
 
 ```sh
 xcode-select --install
-rustup toolchain install 1.95.0
-HORIZON_LAUNCHER_NO_SELF_UPDATE=1 cargo +1.95.0 build --manifest-path launcher/Cargo.toml --release --locked --features gpui_platform/runtime_shaders
+rustup toolchain install 1.98.0
+HORIZON_LAUNCHER_NO_SELF_UPDATE=1 cargo +1.98.0 build --manifest-path launcher/Cargo.toml --release --locked --features gpui_platform/runtime_shaders
 ./launcher/target/release/horizon-launcher
 ```
 
