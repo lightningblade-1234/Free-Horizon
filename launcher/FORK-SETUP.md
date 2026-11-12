@@ -55,19 +55,52 @@ HORIZON_LAUNCHER_NO_SELF_UPDATE=1 cargo +1.95.0 build --manifest-path launcher/C
 ./launcher/target/release/horizon-launcher
 ```
 
-## Automatic resource setup (both platforms)
+## macOS (Apple Silicon and Intel)
+
+Download the app for your processor from [this fork's latest Release](https://github.com/lightningblade-1234/Free-Horizon/releases/latest):
+
+| Mac | Disk image | Zipped app |
+| --- | --- | --- |
+| Apple Silicon (M1 or newer) | `horizon-launcher-macos-arm64.dmg` | `horizon-launcher-macos-arm64.zip` |
+| Intel | `horizon-launcher-macos-x64.dmg` | `horizon-launcher-macos-x64.zip` |
+
+Requires **macOS 12 or newer**. Open the disk image and drag **Horizon** onto **Applications**, or extract the ZIP and move `Horizon.app` into Applications. The app contains license and setup notices in `Contents/Resources`.
+
+The fork's Mac apps are **ad hoc signed**. On the first opening after downloading:
+
+- **macOS 14 and earlier:** Control-click Horizon in Applications, choose **Open**, then **Open** in the dialog.
+- **macOS 15 and later:** open it once, then use **System Settings → Privacy & Security → Open Anyway** next to the blocked app and confirm.
+
+Open **Home**, enter your **Offline name**, and press **Play**. It selects a native Mac game build. Minecraft normally lives at `~/Library/Application Support/minecraft`; choose your launcher's folder if it stores the files elsewhere.
+
+Launcher settings/builds/cache default to `~/Library/Application Support/horizon-launcher`, and game data to `~/Library/Application Support/horizon`. `HORIZON_LAUNCHER_HOME` and `HORIZON_HOME` overrides are supported.
+
+### Build from source on macOS
+
+Install Xcode Command Line Tools and Rust, then run from the repository folder:
+
+```sh
+xcode-select --install
+rustup toolchain install 1.95.0
+HORIZON_LAUNCHER_NO_SELF_UPDATE=1 cargo +1.95.0 build --manifest-path launcher/Cargo.toml --release --locked --features gpui_platform/runtime_shaders
+./launcher/target/release/horizon-launcher
+```
+
+The runtime-shader feature compiles Metal shaders when the app starts, so the separate Xcode Metal compiler is not needed for this source-build command.
+
+## Automatic resource setup (all platforms)
 
 Runtime prerequisites are set up automatically in the normal launcher, without PowerShell or
 a source checkout. It installs/selects a Horizon build, reuses local Java or obtains managed
 **Java 25**, downloads a checksum-verified public server JAR into your local cache when needed,
-and prepares from your own **Minecraft 26.3** installation (normally `%APPDATA%\.minecraft` on Windows or `~/.minecraft` on Linux).
+and prepares from your own **Minecraft 26.3** installation (normally `%APPDATA%\.minecraft` on Windows, `~/.minecraft` on Linux, or `~/Library/Application Support/minecraft` on macOS).
 Progress and failures appear in the existing Console/Home interface. After finding a matching local
 client JAR, setup reuses its version JSON or downloads the checksum-verified public JSON into
 Horizon's cache when metadata is missing or rewritten. Your launcher's metadata is preserved.
 If local Minecraft client files are missing, use the Minecraft folder chooser and supply the
 requested files; the launcher does not authenticate or download those missing client files.
 
-An existing server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` on Windows, `~/.local/share/horizon-launcher/server-jars/26.3.jar` on Linux, or at
+An existing server JAR in `%APPDATA%\horizon-launcher\server-jars\26.3.jar` on Windows, `~/.local/share/horizon-launcher/server-jars/26.3.jar` on Linux, `~/Library/Application Support/horizon-launcher/server-jars/26.3.jar` on macOS, or at
 `HORIZON_SERVER_JAR` can be reused after checksum verification. The 26.3 pin is
 `33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c`.
 

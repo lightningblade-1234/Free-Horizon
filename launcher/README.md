@@ -13,7 +13,7 @@ The opening, then Play ([clip](docs/opening.webm)):
 
 ## Personal fork: offline Play
 
-For a first install, [download this fork's compiled launcher](https://github.com/lightningblade-1234/Free-Horizon/releases/latest) and follow [the short setup guide](FORK-SETUP.md). GitHub builds the Windows and Linux launchers and publishes them in Releases; no compiler is needed to run them, and no Mojang files are included.
+For a first install, [download this fork's compiled launcher](https://github.com/lightningblade-1234/Free-Horizon/releases/latest) and follow [the short setup guide](FORK-SETUP.md). GitHub builds the Windows, Linux and macOS launchers and publishes them in Releases; no compiler is needed to run them, and no Mojang files are included.
 
 For a source checkout, one developer setup command builds and prepares the normal launcher:
 

@@ -86,6 +86,16 @@ class SyncUpstreamTests(unittest.TestCase):
         self.assertEqual((self.fork / "packaging/linux/appimage.sh").read_text(),
                          "#!/bin/sh\necho package\n")
 
+    def test_macos_packaging_merge_requests_a_launcher_release(self):
+        self.commit(self.writer, "packaging/macos/Info.plist", "<plist><dict/></plist>\n")
+        su.git(self.writer, "push", "upstream", "main")
+        result = su.sync(self.fork, str(self.upstream))
+        self.assertEqual(result["status"], "updated")
+        self.assertTrue(result["launcher_changed"])
+        self.assertEqual(self.origin_head(), result["head"])
+        self.assertEqual((self.fork / "packaging/macos/Info.plist").read_text(),
+                         "<plist><dict/></plist>\n")
+
     def test_fork_readme_is_preserved_and_upstream_documentation_is_mirrored(self):
         self.commit(self.writer, "README.md", "# Shared\nBase documentation\n")
         su.git(self.writer, "push", "upstream", "main")

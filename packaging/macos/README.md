@@ -3,8 +3,10 @@
 `package.sh BINARY VERSION OUTDIR` (run by `.github/workflows/launcher.yml` on macOS) makes:
 
 - `Horizon.app`: `Contents/MacOS/horizon-launcher`, `Contents/Info.plist` (this folder's, bundle
-  id `dev.horizon.launcher`, macOS 11 or later), `Contents/Resources/horizon.icns`
+  id `dev.horizon.launcher`, macOS 12 or later), `Contents/Resources/horizon.icns`
   (`packaging/icons`, from `cargo run -p xtask -- icons`).
+  License/third-party notices and the fork's setup guide (when present) are copied into
+  `Contents/Resources` before signing, so the ZIP and disk image both include them.
 - `horizon-launcher-macos-arm64.dmg`: the installer. Opening it shows the app and a link to
   Applications over `background.png` / `background@2x.png` (drawn from `background.html`); the
   player drags one onto the other. Built by [dmgbuild](https://github.com/dmgbuild/dmgbuild),

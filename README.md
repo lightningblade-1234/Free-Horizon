@@ -13,7 +13,7 @@ Open the normal launcher, enter a player name, and click **Play**. The fork keep
 - No Microsoft credential renewal, ownership gate or account-session handoff in normal Horizon Play.
 - Embedded Windows shaders, so the built launcher can run after build caches are removed.
 - A one-command Windows source setup helper.
-- GitHub Actions builds native Windows x64 and Linux x86_64 launchers for this fork's Releases, including the Windows installer and Linux AppImage.
+- GitHub Actions builds native Windows x64, Linux x86_64, and macOS Apple Silicon/Intel launchers for this fork's Releases, including Windows installers, Linux AppImages, and Mac app bundles/disk images.
 
 **Minecraft JARs, assets and prepared game data are never distributed in this repository or its Releases.** Preparation uses the user's own locally obtained Minecraft installation. Releases contain only the compiled launcher and license/setup notices.
 
@@ -44,6 +44,17 @@ The AppImage bundles the launcher's UI libraries. It requires **glibc 2.35+** (U
 Alternatively, download **`horizon-offline-launcher-linux-x86_64.tar.gz`**, extract it, and run `./horizon-launcher`. This archive uses your distribution's UI libraries; see [Linux setup and troubleshooting](launcher/FORK-SETUP.md#linux-x86_64).
 
 Open **Home**, enter your **Offline name**, and press **Play**. The Linux launcher selects a native Linux game build and prepares from your local Minecraft installation (normally `~/.minecraft`). Java 25 and the verified server JAR are handled by the same automatic setup. Running the release needs no Rust or source checkout.
+
+## Download and run — macOS
+
+Open [Releases](https://github.com/lightningblade-1234/Free-Horizon/releases/latest) and choose the file for your Mac:
+
+- **Apple Silicon (M1 or newer):** `horizon-launcher-macos-arm64.dmg` or `.zip`.
+- **Intel:** `horizon-launcher-macos-x64.dmg` or `.zip`.
+
+Open the disk image and drag **Horizon** into **Applications**, or extract the ZIP app bundle. Requires **macOS 12 or newer**. The fork uses ad hoc signing; for the first opening, follow the [Mac setup instructions](launcher/FORK-SETUP.md#macos-apple-silicon-and-intel).
+
+Open **Home**, enter your **Offline name**, and press **Play**. The launcher selects a native Mac game build and prepares from your local Minecraft installation, normally `~/Library/Application Support/minecraft`. Running the release needs no Rust or source checkout.
 
 ## Clone and set up with one command
 
@@ -78,6 +89,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\setup_launcher.ps1 -MinecraftDi
 
 - An existing **Minecraft 26.3** installation with its client JAR, libraries and assets. The usual Windows location is `%APPDATA%\.minecraft`. Automatic setup reuses a matching local version JSON or obtains a checksum-verified copy when it is missing or rewritten by another launcher.
 - On Linux, the usual Minecraft location is `~/.minecraft`; choose another folder in Home if your Minecraft launcher stores it elsewhere.
+- On macOS, the usual Minecraft location is `~/Library/Application Support/minecraft`.
 - **Java 25** for preparation. A Minecraft-managed runtime or a local JDK is reused; the launcher obtains a managed runtime if needed.
 - The genuine **26.3 server JAR**, used to export server-side game data needed by single player. It is a preparation input; ordinary Play runs in Rust.
 
@@ -122,6 +134,8 @@ This fork keeps **Sync upstream**, **checks** (Python tooling, formatting, lint 
 | Source-built launcher | `dist\horizon-launcher.exe` in the checkout |
 
 On Linux, launcher settings, installed builds and the server JAR cache live under `~/.local/share/horizon-launcher/`, and the default game folder is `~/.local/share/horizon/` (or the corresponding `XDG_DATA_HOME` locations).
+
+On macOS, these folders are `~/Library/Application Support/horizon-launcher/` and `~/Library/Application Support/horizon/`.
 
 Each instance can have its own game folder. Home's **Folder** control opens the selected one. Custom data locations and `HORIZON_LAUNCHER_HOME` / `HORIZON_HOME` overrides change these defaults.
 

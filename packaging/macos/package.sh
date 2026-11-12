@@ -35,6 +35,10 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/horizon-launcher"
 chmod 755 "$app/Contents/MacOS/horizon-launcher"
 cp "$here/../icons/horizon.icns" "$app/Contents/Resources/horizon.icns"
+cp "$here/../../LICENSE" "$here/../../THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/"
+if [[ -f "$here/../../launcher/FORK-SETUP.md" ]]; then
+  cp "$here/../../launcher/FORK-SETUP.md" "$app/Contents/Resources/"
+fi
 sed "s/@VERSION@/$version/g" "$here/Info.plist" > "$app/Contents/Info.plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 plutil -lint "$app/Contents/Info.plist"

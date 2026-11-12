@@ -57,7 +57,7 @@ def sync(root, upstream=UPSTREAM):
         git(root, "add", "--", "UPSTREAM.md")
     changed = git(root, "diff", "--cached", "--name-only").stdout.splitlines()
     result["launcher_changed"] = any(
-        path.startswith(("launcher/", "crates/", "packaging/linux/", "packaging/icons/")) or path in
+        path.startswith(("launcher/", "crates/", "packaging/linux/", "packaging/macos/", "packaging/icons/")) or path in
         ("tools/setup_launcher.ps1", ".github/workflows/offline-launcher.yml")
         for path in changed)
     git(root, "commit", "-m", "Merge upstream main into offline fork",
