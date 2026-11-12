@@ -182,15 +182,17 @@ jobs:
             arch: arm64
             cpu: arm64
             target: aarch64-apple-darwin
+            jobs: 2
           - os: macos-15-intel
             arch: x64
             cpu: x86_64
             target: x86_64-apple-darwin
+            jobs: 4
     name: macOS ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
-      CARGO_BUILD_JOBS: '2'
+      CARGO_BUILD_JOBS: ${{ matrix.jobs }}
       MACOSX_DEPLOYMENT_TARGET: '12.0'
       MACOS_SIGN_IDENTITY: '-'
       MAC_ARCH: ${{ matrix.arch }}
@@ -216,6 +218,7 @@ jobs:
         with:
           workspaces: launcher
           shared-key: offline-launcher-macos-${{ matrix.arch }}
+          cache-on-failure: true
       - name: Check the public tree
         run: python3 tools/check_public_tree.py
       - name: Fresh test and launcher directories

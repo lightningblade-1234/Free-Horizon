@@ -343,7 +343,7 @@ fn game_startup_failures_and_nonzero_exits_use_the_existing_process_monitor() {
     let home = Home::new("failures");
     let cmd = backend::local_client(TAG, "Alex").unwrap();
     // A missing executable after preflight is still reported by the real spawn path.
-    fs::remove_file(home.version(TAG).join(CLIENT)).unwrap();
+    fs::remove_file(cmd.get_program()).unwrap();
     let (tx, _rx) = channel();
     let error = backend::spawn(Job::Client, cmd, tx)
         .err()
@@ -437,6 +437,13 @@ fn offline_extra_arguments_preserve_game_options_but_refuse_identity_and_session
     assert!(exit.is_ok());
     assert!(lines.contains(&"arg=Alex".into()));
     assert!(lines.contains(&"arg=--creative".into()));
-    assert!(lines.contains(&format!("cwd={}", instance.home.display())));
+    let cwd = lines
+        .iter()
+        .find_map(|line| line.strip_prefix("cwd="))
+        .expect("the game fixture reports its working directory");
+    assert_eq!(
+        Path::new(cwd).canonicalize().unwrap(),
+        instance.home.canonicalize().unwrap()
+    );
     assert!(lines.contains(&"HORIZON_SESSION_FILE=false".into()));
 }
