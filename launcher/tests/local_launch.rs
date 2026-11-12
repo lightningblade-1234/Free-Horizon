@@ -377,7 +377,8 @@ fn offline_preparation_reports_missing_local_inputs_without_accounts_or_download
         let error = backend::preparer(TAG, &minecraft, from, &|_| {})
             .err()
             .expect("no client jar must stop preparation");
-        assert!(error.contains("no Minecraft 9.9 client jar"), "{error}");
+        assert!(error.contains("9.9"), "{error}");
+        assert!(error.contains(&minecraft.display().to_string()), "{error}");
     }
     assert!(!home.root.join("launcher/account-secrets.json").exists());
     assert!(!home.root.join("launcher/accounts.json").exists());
