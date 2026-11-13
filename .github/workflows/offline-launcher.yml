@@ -178,7 +178,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15
+          # macos-15 ARM capacity can expire unassigned after 15 minutes; macos-26 is a separate
+          # current Apple Silicon image. MACOSX_DEPLOYMENT_TARGET keeps the result compatible with 12+.
+          - os: macos-26
             arch: arm64
             cpu: arm64
             target: aarch64-apple-darwin
