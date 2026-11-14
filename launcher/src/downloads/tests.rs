@@ -48,6 +48,7 @@ impl Server {
                 let Ok((socket, _)) = listener.accept().await else {
                     break;
                 };
+                socket.set_nodelay(true).unwrap();
                 kept.accepted.fetch_add(1, Relaxed);
                 let state = kept.clone();
                 let data = data.clone();
