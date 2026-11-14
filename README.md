@@ -115,7 +115,7 @@ The **Offline launcher release** workflow builds on relevant pushes to this fork
 
 Translation tables merge by JSON key, so independent upstream translations and fork-only labels do not conflict merely because adjacent lines changed. Two edits to the same key still require manual resolution. For local merges, configure the same driver with `git config merge.horizon-lang.driver 'python tools/merge_lang.py %O %A %B'`.
 
-The fork's **README.md is preserved during upstream sync**, including when upstream edits or removes its README. Upstream documentation is mirrored separately in [UPSTREAM.md](UPSTREAM.md), and upstream project-status checks use that mirror. For local upstream merges, also run `git config merge.horizon-readme.driver true` to preserve this README.
+The fork's **README.md is preserved during upstream sync**, including when upstream edits or removes its README. Upstream documentation is mirrored separately in [UPSTREAM.md](UPSTREAM.md), and upstream project-status checks use [docs/status.md](docs/status.md). For local upstream merges, also run `git config merge.horizon-readme.driver true` to preserve this README.
 
 To start/restart the recurring poller, run **Sync upstream** from Actions with **keep_running** enabled. Disable the workflow to stop it. For a single check, clear **keep_running**; an existing recurring run keeps its own schedule.
 
