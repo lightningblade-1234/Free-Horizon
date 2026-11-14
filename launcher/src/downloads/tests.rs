@@ -13,6 +13,19 @@ struct State {
     requests: Mutex<Vec<Request>>,
     faults: AtomicUsize,
 }
+struct ActiveRequest<'a>(&'a State);
+impl<'a> ActiveRequest<'a> {
+    fn new(state: &'a State) -> Self {
+        let active = state.active.fetch_add(1, Relaxed) + 1;
+        state.peak.fetch_max(active, Relaxed);
+        Self(state)
+    }
+}
+impl Drop for ActiveRequest<'_> {
+    fn drop(&mut self) {
+        self.0.active.fetch_sub(1, Relaxed);
+    }
+}
 struct Server {
     url: String,
     state: Arc<State>,
@@ -65,8 +78,7 @@ impl Server {
                             }
                         }
                         state.requests.lock().unwrap().push((path.clone(), range));
-                        let active = state.active.fetch_add(1, Relaxed) + 1;
-                        state.peak.fetch_max(active, Relaxed);
+                        let mut active = Some(ActiveRequest::new(&state));
                         tokio::time::sleep(delay).await;
                         let fault = path == "/retry"
                             && range.is_some_and(|(start, _)| start > 0)
@@ -109,8 +121,10 @@ impl Server {
                             ("200 OK", String::new(), data.to_vec())
                         };
                         let header=format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nETag: \"fixture\"\r\n{extra}\r\n",body.len());
+                        if body.is_empty() {
+                            drop(active.take());
+                        }
                         if write.write_all(header.as_bytes()).await.is_err() {
-                            state.active.fetch_sub(1, Relaxed);
                             return;
                         }
                         if path == "/truncate"
@@ -118,22 +132,27 @@ impl Server {
                             && state.faults.fetch_add(1, Relaxed) == 0
                         {
                             let _ = write.write_all(&body[..body.len() / 2]).await;
-                            state.active.fetch_sub(1, Relaxed);
                             return;
                         }
                         let mut body = body;
                         if path == "/corrupt" && !body.is_empty() {
                             body[0] ^= 1;
                         }
-                        for chunk in body.chunks(1024) {
+                        let last = body.len().saturating_sub(1);
+                        for chunk in body[..last].chunks(1024) {
                             if path == "/slow" {
                                 tokio::time::sleep(Duration::from_millis(10)).await;
                             }
                             if write.write_all(chunk).await.is_err() {
-                                break;
+                                return;
                             }
                         }
-                        state.active.fetch_sub(1, Relaxed);
+                        // The client can finish before the server's final write resumes.
+                        // End fixture accounting before making that last byte available.
+                        drop(active.take());
+                        if write.write_all(&body[last..]).await.is_err() {
+                            return;
+                        }
                     }
                 });
             }
@@ -156,7 +175,8 @@ fn config() -> Config {
     Config {
         threshold: 32 << 10,
         minimum_segment: 4 << 10,
-        read_timeout: Duration::from_millis(200),
+        // Inactivity tests override this; ordinary transfers tolerate busy CI runners.
+        read_timeout: Duration::from_secs(5),
         retries: 2,
         ..Config::default()
     }
