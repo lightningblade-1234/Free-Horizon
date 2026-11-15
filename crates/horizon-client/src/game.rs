@@ -351,6 +351,7 @@ mod nautili;
 mod net_harness;
 mod nether_portal;
 mod no_resources;
+mod nonliving_hurt;
 mod occlusion_culling;
 mod ominous_item_spawner;
 mod options;
@@ -3531,8 +3532,7 @@ impl Game<'_> {
         }
         let (origin, dir) = self.aim()?;
         // GameRenderer.pick: the block ray runs out to the larger of the two
-        // interaction ranges; filterHitResult then drops a hit past the
-        // block's.
+        // interaction ranges; filterHitResult then drops a hit past the block's.
         self.clip_ray(origin, dir, self.block_reach.max(self.entity_reach))
             .filter(|hit| {
                 let distance: [f64; 3] = std::array::from_fn(|i| hit.point[i] - origin[i]);
@@ -9060,12 +9060,12 @@ impl Game<'_> {
             )
         });
         let (camera, underwater, view_yaw, view_pitch) = match view {
-            Some((c, yaw, pitch)) => {
-                let s =
-                    self.world
-                        .block(c.x.floor() as i32, c.y.floor() as i32, c.z.floor() as i32);
-                (c, self.res.facts().get(s).fluid == Fluid::Water, yaw, pitch)
-            }
+            Some((c, yaw, pitch)) => (
+                c,
+                self.camera_submersion([c.x, c.y, c.z]) == horizon_client::fog::FogType::Water,
+                yaw,
+                pitch,
+            ),
             None => (
                 glam::DVec3::new(0.5, 100.0, 0.5),
                 false,
@@ -9615,12 +9615,7 @@ impl Game<'_> {
             },
             title,
             sky_blocked: horizon_client::fog::sky_pass_skipped(
-                horizon_client::fog::fog_type(
-                    &self.world,
-                    self.res.facts(),
-                    [camera.x, camera.y, camera.z],
-                    &self.near_plane(),
-                ),
+                self.camera_submersion([camera.x, camera.y, camera.z]),
                 self.potions.effects.get("blindness").is_some()
                     || self.potions.effects.get("darkness").is_some(),
                 self.boss_overlay.should_create_world_fog(),
