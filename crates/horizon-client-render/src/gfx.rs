@@ -2245,7 +2245,7 @@ async fn open_device(
     window: &Arc<Window>,
     offscreen: bool,
     api: GraphicsApi,
-    layers: u32,
+    needs: surface_setup::DeviceNeeds,
 ) -> Result<Opened> {
     let wgpu_backend = std::env::var_os("WGPU_BACKEND").is_some();
     let mut first = None;
@@ -2256,7 +2256,7 @@ async fn open_device(
         horizon_system::machine_arch(),
         wgpu_backend,
     ) {
-        match open_device_with(window, offscreen, &order, layers, allow_cpu).await {
+        match open_device_with(window, offscreen, &order, needs, allow_cpu).await {
             Ok(opened) => {
                 if let Some(first) = &first {
                     log::warn!(
@@ -2309,7 +2309,7 @@ async fn open_device_with(
     window: &Arc<Window>,
     offscreen: bool,
     order: &[wgpu::Backends],
-    layers: u32,
+    needs: surface_setup::DeviceNeeds,
     allow_cpu: bool,
 ) -> Result<Opened> {
     let mut failures = Vec::new();
@@ -2318,7 +2318,7 @@ async fn open_device_with(
         if attempt > 0 {
             log::warn!("Horizon renderer: trying {name} ({})", failures.join("; "));
         }
-        match open_with_retry(backends, window, offscreen, layers, allow_cpu).await {
+        match open_with_retry(backends, window, offscreen, needs, allow_cpu).await {
             Ok(opened) => return Ok(opened),
             Err(e) => failures.push(e),
         }
@@ -2341,17 +2341,17 @@ async fn open_with_retry(
     backends: wgpu::Backends,
     window: &Arc<Window>,
     offscreen: bool,
-    layers: u32,
+    needs: surface_setup::DeviceNeeds,
     allow_cpu: bool,
 ) -> std::result::Result<Opened, String> {
-    match open_backend(backends, window, offscreen, false, layers, allow_cpu).await {
+    match open_backend(backends, window, offscreen, false, needs, allow_cpu).await {
         Err(NoDevice::NoAdapter(hidden)) => {
             log::warn!(
                 "Horizon renderer: {} has no conformant adapter ({hidden}); asking again for the \
                  ones wgpu hides as non-conformant",
                 backends_name(backends)
             );
-            match open_backend(backends, window, offscreen, true, layers, allow_cpu).await {
+            match open_backend(backends, window, offscreen, true, needs, allow_cpu).await {
                 Ok(opened) => {
                     let info = opened.adapter.get_info();
                     if is_broken_haswell_vulkan(&info) {
@@ -2400,7 +2400,7 @@ async fn open_backend(
     window: &Arc<Window>,
     offscreen: bool,
     allow_nonconformant: bool,
-    layers: u32,
+    needs: surface_setup::DeviceNeeds,
     allow_cpu: bool,
 ) -> std::result::Result<Opened, NoDevice> {
     let name = backends_name(backends);
@@ -2453,7 +2453,7 @@ async fn open_backend(
     let mut tried = Vec::new();
     let mut adapter = adapter;
     loop {
-        let why = match open_adapter(name, window, surface.as_ref(), &adapter, layers).await {
+        let why = match open_adapter(name, window, surface.as_ref(), &adapter, needs).await {
             Ok(adapted) => {
                 return Ok(Opened {
                     instance,
@@ -2663,7 +2663,7 @@ impl Renderer {
             }
             None => {
                 let _step = crate::spans::startup::step("renderer.open_device");
-                open_device(&window, offscreen, api, layers).await?
+                open_device(&window, offscreen, api, request.needs(layers)).await?
             }
         };
         // Computed once: the sprite arrays, the shaders' constants and the
@@ -4876,7 +4876,7 @@ impl Renderer {
             last_wait: std::time::Duration::ZERO,
             last_encode: std::time::Duration::ZERO,
             window,
-            ray_scene: surface_setup::ray_query::ray_scene::RayScene::new(&device),
+            ray_scene: surface_setup::ray_query::ray_scene::RayScene::forced(&device),
             device,
             reuse,
             queue: submit::Queue::new(queue, submit::wanted()),
@@ -6812,9 +6812,7 @@ impl Renderer {
     }
     /// This renderer's output as applied, with what its destination offers and reports.
     pub fn output(&self) -> output::EffectiveOutput {
-        let native = self.native.as_ref().map(|n| n.frame.api);
-        self.output
-            .with_pack(self.shader_pack_kind() == Some("iris"), native)
+        self.output_with_rays()
     }
     /// What this renderer's display last reported: a renderer made again for the window
     /// starts from it (`Renderer::new`'s `display`).
@@ -7018,7 +7016,7 @@ impl Renderer {
         });
         self.pack_post = Some((dimension, post));
         if self.pack_post.as_ref().is_some_and(|p| p.1.is_some()) {
-            self.native = None;
+            self.replace_native(None);
         }
         Ok(report)
     }
@@ -7215,7 +7213,7 @@ impl Renderer {
     pub fn drop_shader_packs(&mut self) {
         self.pack_loading = None;
         self.pack_post = None;
-        self.native = None;
+        self.replace_native(None);
         self.pack_atlas = None;
         self.separate_ao = false;
     }
@@ -7258,7 +7256,7 @@ impl Renderer {
             );
         }
         let Some((report, constants, sprite_tags, sprite_materials, lights)) = pack else {
-            self.native = None;
+            self.replace_native(None);
             return Ok(Vec::new());
         };
         let terrain = native_material::TerrainShape {
@@ -7282,7 +7280,7 @@ impl Renderer {
             &constants,
             lights,
         )?;
-        self.native = pack.draws().then_some(pack);
+        self.replace_native(pack.draws().then_some(pack));
         if self.native.is_some() {
             self.pack_post = None;
             self.pack_atlas = None;
@@ -9927,24 +9925,21 @@ impl Renderer {
         if !frame.title
             && let Some(native) = &mut self.native
         {
-            let size = self
-                .world_post
-                .size()
-                .filter(|_| scaled.is_some())
-                .unwrap_or([self.config.width, self.config.height]);
-            let scene = self.ray_scene.as_ref();
-            native.write(&self.queue, frame, size, output.display(), scene);
-            native.frame.block_light.update(
-                &self.queue,
-                frame.camera,
-                &self.light_blocks,
-                self.light_revision,
-            );
-            if let Some(t) = &mut native.timing {
-                t.begin(&self.device, &self.queue);
-                native_sky_pass =
-                    native.sky.is_some() && t.recording() && sky_visible && frame.skybox;
-            }
+            native_sky_pass = native.start_frame(native_pack::FrameStart {
+                device: &self.device,
+                queue: &self.queue,
+                frame,
+                size: self
+                    .world_post
+                    .size()
+                    .filter(|_| scaled.is_some())
+                    .unwrap_or([self.config.width, self.config.height]),
+                output: &output,
+                lights: &self.light_blocks,
+                light_revision: self.light_revision,
+                sky_visible,
+                scene: self.ray_scene.as_ref(),
+            });
         }
         // One of Horizon's own packs: its shadow passes, from the shadow camera's lists.
         if !frame.title
@@ -10124,33 +10119,17 @@ impl Renderer {
                 reflection = Some(mirror.color.clone());
             }
         }
+        // One of Horizon's own packs: the mirror its material reads, and its copies of the world
+        // before translucent terrain and its surface target, the size of this frame's targets.
         if let Some(native) = &mut self.native {
-            let reflection =
-                reflection.map(|view| native.frame.linear_mirror(&self.device, &mut encoder, view));
-            native
-                .frame
-                .set_reflection(&self.device, reflection.as_ref());
-        }
-        // The material stage's copies of the world before translucent terrain, the size of
-        // this frame's targets.
-        if let Some(native) = &mut self.native
-            && native.material.is_some()
-            && !frame.title
-        {
-            let color = scaled.as_ref().map(|(c, _)| c.texture());
-            native
-                .frame
-                .fit_opaque(&self.device, world_depth.texture(), color);
-        }
-        if let Some(native) = self.native.as_mut().filter(|_| !frame.title) {
-            let writes = native.material.as_ref().is_some_and(|m| m.writes_surface);
-            let depth = world_depth.texture();
-            let size = if writes {
-                [depth.width(), depth.height()]
-            } else {
-                [1, 1]
-            };
-            native.frame.fit_surface(&self.device, size);
+            native.prepare_world_targets(native_pack::WorldTargets {
+                device: &self.device,
+                encoder: &mut encoder,
+                reflection,
+                title: frame.title,
+                depth: world_depth.texture(),
+                color: scaled.as_ref().map(|(c, _)| c.texture()),
+            });
         }
         laps.lap("r_mirror");
         // One of Horizon's own packs with a material stage: terrain draws with its pipelines,
