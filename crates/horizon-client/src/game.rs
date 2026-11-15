@@ -5008,7 +5008,6 @@ impl Game<'_> {
         if canceled {
             return Ok(false);
         }
-        self.input_feedback(horizon_client::input_source::Feedback::BlockBroken);
         let broken = state;
         let facts = self.res.facts().get(state).clone();
         let state = self.crack_mined_pot(pos, state);
@@ -7411,6 +7410,7 @@ impl Game<'_> {
         self.fns = Default::default();
         (self.world_tables, self.health_resources) =
             self.build_world_tables(false, &level.enabled_features)?;
+        self.invalidate_tagged_shader_ids();
         self.damage_tag_generation = self.damage_tag_generation.wrapping_add(1);
         // Native tag reads use the lock to tell that the tag tables are ready.
         self.session_lock = Some(session_lock);
