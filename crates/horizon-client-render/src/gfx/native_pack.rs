@@ -346,7 +346,7 @@ impl NativePack {
             && !material.as_ref().is_some_and(traced);
         if let Some(post) = post.as_mut().filter(|_| !scenes.is_empty() && !refused) {
             let shape = super::native_post::trace::TraceShape::of(terrain);
-            if !post.trace_scene(device, scenes, constants, &shape)
+            if !post.trace_scene(device, scenes, constants, &shape, &frame.pbr)
                 && let Some(m) = material.as_mut()
             {
                 m.scene = None;
@@ -442,6 +442,24 @@ impl NativePack {
             [1, 1]
         };
         self.frame.fit_surface(device, size);
+    }
+
+    /// The rain and snow through the pack's weather stage, in the world pass after translucent
+    /// terrain and clouds. False when the pack has none, for the renderer's own.
+    pub fn draw_weather(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        weather: &super::weather::Weather,
+        entities: &wgpu::BindGroup,
+    ) -> bool {
+        let Some(pipeline) = &self.weather else {
+            return false;
+        };
+        weather.draw_bound(pass, entities, |pass| {
+            pass.set_pipeline(pipeline);
+            pass.set_bind_group(horizon_shader_api::stages::GROUP, &self.frame.group, &[]);
+        });
+        true
     }
 }
 
