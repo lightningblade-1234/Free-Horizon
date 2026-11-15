@@ -3612,11 +3612,11 @@ impl Game<'_> {
         player.item_use_slows_sprint = item_use_slows_sprint;
         player.respiration = respiration;
         player.glider = glider;
-        // On someone else's server the glide flag is the server's
-        // (`DATA_SHARED_FLAGS_ID`, applied by the SetEntityData handler); the
-        // game's own integrated server has no such round trip, so the client
-        // keeps predicting the clear a tick after the landing glide.
-        player.server_owns_glide = self.integrated.is_none();
+        // A client of a server, the window's own integrated one included, takes
+        // the glide's end from the server's flag alone (`DATA_SHARED_FLAGS_ID`,
+        // applied by the SetEntityData handler): vanilla's LocalPlayer never
+        // ends a glide itself.
+        player.server_owns_glide = self.remote.is_some();
         let _ = player.set_sleeping(sleeping);
         player.leather_boots = leather_boots;
         player.freeze_immune = freeze_immune;
@@ -7552,6 +7552,7 @@ impl Game<'_> {
             level: self.level.xp_level,
             progress: self.level.xp_progress,
             total: self.level.xp_total,
+            score: self.level.score,
         };
         self.restore_effects();
         self.mining = None;
@@ -8737,6 +8738,7 @@ impl Game<'_> {
         level.xp_level = self.experience.level;
         level.xp_progress = self.experience.progress;
         level.xp_total = self.experience.total;
+        level.score = self.experience.score;
         level.root_vehicle = vehicle.as_ref().map(|v| v.2).or(self.pending_vehicle);
         // The ride's tree, or none once the file's own came back.
         match vehicle {
@@ -8774,7 +8776,6 @@ impl Game<'_> {
                 map.insert("attributes".into(), p.saved_attributes());
             }
             level.fall_distance = p.fall_distance;
-
             level.food = p.health.food.food;
             level.saturation = p.health.food.saturation;
             level.flying = p.flying;
@@ -9697,10 +9698,7 @@ impl Game<'_> {
             border,
             game_time: self.world.game_time as f32,
             shader_game_time: ((self.world.game_time % 24000) as f32 + alpha as f32) / 24000.0,
-            crumbling_sprite: frame_geometry::crumbling_sprite(
-                &self.gui.atlas.sprites,
-                self.settings.improved_transparency,
-            ),
+            crumbling_sprite: frame_geometry::crumbling_sprite(&self.gui.atlas.sprites),
             end_portal_sprites: ["environment/end_sky", "entity/end_portal/end_portal"].map(|n| {
                 self.gui
                     .atlas
@@ -9792,7 +9790,6 @@ impl Game<'_> {
 fn autosave_interval(rate: f32) -> i64 {
     i64::from((rate * 300.0) as i32).max(100)
 }
-
 /// winit's events for a window's game, with any loop: a headless client (#4951) has no
 /// winit loop and calls these from its own.
 impl Game<'_> {
