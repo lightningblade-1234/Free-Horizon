@@ -1,5 +1,4 @@
 {
-  "Offline name": "オフライン名",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "ブロックとアイテムは移行され、Horizonのチェックに合格しました。Mod自体のコードは実行されません。",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "一部は移行されましたが、欠けている部分や元と異なる部分があるか、まだ確認されていません。詳細は技術情報に記載されています。",
   "It does not come over yet.": "まだ移行されません。",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "前回のビルドは {horizon} 上",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "オフライン名",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

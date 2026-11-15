@@ -1,5 +1,4 @@
 {
-  "Offline name": "Aha anọghị n'ịntanetị",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "A bufere ngọngọ ya na ihe ya ma ha gafere nyocha Horizon; a naghị agba koodu mod ahụ n'onwe ya.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "A bufere akụkụ ya, mana e nwere ihe ewepụrụ, ihe dị iche na nke mbụ, ma ọ bụ ihe a na-enyochabeghị; nkọwa nka na-ekwu ihe ọ bụ.",
   "It does not come over yet.": "A naghị ebufe ya ugbu a.",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "Na nwube ikpeazụ, na {horizon}",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "Aha anọghị n'ịntanetị",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

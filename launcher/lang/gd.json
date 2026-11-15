@@ -1,5 +1,4 @@
 {
-  "Offline name": "Ainm far loidhne",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "Thàinig a blocaichean is a nithean a-nall agus chaidh iad tro sgrùdaidhean Horizon; chan eil còd a' mhod fhèin air a ruith.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "Thàinig pàirt dheth a-nall, ach tha rudeigin air fhàgail a-mach, eadar-dhealaichte bhon thùs no gun sgrùdadh fhathast; their am mion-fhiosrachadh teignigeach dè.",
   "It does not come over yet.": "Chan eil e a' tighinn a-nall fhathast.",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "San togail mu dheireadh, air {horizon}",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "Ainm far loidhne",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

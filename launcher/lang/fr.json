@@ -1,5 +1,4 @@
 {
-  "Offline name": "Nom hors ligne",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "Ses blocs et ses objets ont été repris et ont passé les vérifications de Horizon ; le code du mod lui-même n'est pas exécuté.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "Une partie a été reprise, mais un élément manque, diffère de l'original ou n'a pas encore été vérifié ; le détail technique précise lequel.",
   "It does not come over yet.": "Il n'est pas encore repris.",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "Dans la dernière compilation, sur {horizon}",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "Le serveur en reçoit une copie, votre monde solo reste tel quel.",
+  "You have no single-player world yet: play one first, or choose New world.": "Vous n'avez pas encore de monde solo : créez-en un ou sélectionnez Nouveau Monde",
+  "Offline name": "Nom hors ligne",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

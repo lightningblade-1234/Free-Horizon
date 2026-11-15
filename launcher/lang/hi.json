@@ -1,5 +1,4 @@
 {
-  "Offline name": "ऑफ़लाइन नाम",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "इसके ब्लॉक और आइटम आ गए और Horizon की जाँच में पास हो गए; मॉड का अपना कोड नहीं चलता।",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "इसका कुछ हिस्सा आ गया, लेकिन कुछ छूट गया है, मूल से अलग है या अभी जाँचा नहीं गया है; तकनीकी विवरण बताता है कि क्या।",
   "It does not come over yet.": "यह अभी नहीं आता।",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "पिछले बिल्ड में, {horizon} पर",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "ऑफ़लाइन नाम",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

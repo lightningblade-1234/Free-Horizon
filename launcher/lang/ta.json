@@ -1,5 +1,4 @@
 {
-  "Offline name": "ஆஃப்லைன் பெயர்",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "அதன் பிளாக்குகளும் உருப்படிகளும் கொண்டு வரப்பட்டு Horizon இன் சரிபார்ப்புகளில் தேர்ச்சி பெற்றன; மோட்டின் சொந்தக் குறியீடு இயக்கப்படுவதில்லை.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "அதன் ஒரு பகுதி கொண்டு வரப்பட்டது, ஆனால் ஏதோ விடுபட்டுள்ளது, அசலிலிருந்து வேறுபடுகிறது அல்லது இன்னும் சரிபார்க்கப்படவில்லை; தொழில்நுட்ப விவரம் எதை எனக் கூறும்.",
   "It does not come over yet.": "இது இன்னும் கொண்டு வரப்படவில்லை.",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "கடைசி உருவாக்கத்தில், {horizon} இல்",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "ஆஃப்லைன் பெயர்",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",

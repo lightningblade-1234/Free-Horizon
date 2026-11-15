@@ -1,5 +1,4 @@
 {
-  "Offline name": "Orukọ aisinipo",
   "Its blocks and items came over and passed Horizon's checks; the mod's own code is not run.": "Àwọn búlọ́kì àti nkan rẹ̀ dé, wọ́n sì kọjá àyẹ̀wò Horizon; a kò ṣiṣẹ́ kóòdù mod náà fúnrarẹ̀.",
   "Part of it came over, but something is left out, differs from the original or has not been checked yet; the technical detail says what.": "Apá kan rẹ̀ dé, ṣùgbọ́n ohun kan kù sílẹ̀, ó yàtọ̀ sí ti ìpilẹ̀ṣẹ̀ tàbí a kò tí ì yẹ̀wò rẹ̀; àlàyé ẹ̀rọ sọ ohun tó jẹ́.",
   "It does not come over yet.": "Kò tí ì dé báyìí.",
@@ -1231,6 +1230,9 @@
   "In the last build, on {horizon}": "Nínú kíkọ́ tó kẹ́yìn, lórí {horizon}",
   "Duplicate native mod {id}.": "Duplicate native mod {id}.",
   "Native and content mod ids differ.": "Native and content mod ids differ.",
+  "The server gets a copy: your single-player world stays as it is.": "The server gets a copy: your single-player world stays as it is.",
+  "You have no single-player world yet: play one first, or choose New world.": "You have no single-player world yet: play one first, or choose New world.",
+  "Offline name": "Orukọ aisinipo",
   "Checking Java and your Minecraft install": "Checking Java and your Minecraft install",
   "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).": "Offline preparation needs a local Minecraft version JSON matching this build. Choose its Minecraft folder; no files were downloaded ({url}).",
   "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}": "Offline preparation needs your local Minecraft {version} server JAR. Set HORIZON_SERVER_JAR to its full path, then press Play again. No files were downloaded. Expected cache: {path}",
