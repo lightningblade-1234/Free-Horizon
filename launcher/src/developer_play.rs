@@ -73,6 +73,8 @@ impl Launcher {
             backend::strip_session_env(&mut cmd);
             let launch = instance.map(|i| i.launch).unwrap_or_default();
             self.starting_client = Some(tag);
+            // The jar phase keeps the row of the started instance on Starting.
+            self.starting_instance = run.clone();
             jar_launch::client(cmd, launch, run, self.tx.clone());
         }
     }
