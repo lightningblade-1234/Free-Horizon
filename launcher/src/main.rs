@@ -812,6 +812,7 @@ mod tests {
 
     #[test]
     fn offline_play_prepares_first_and_waits_while_busy() {
+        use super::{play_press, PlayPress};
         assert_eq!(play_press(true, Some(true), false), PlayPress::Play);
         assert_eq!(
             play_press(false, Some(true), false),
