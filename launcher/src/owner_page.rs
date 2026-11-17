@@ -8,7 +8,11 @@ impl Launcher {
     /// Explicit sign-in from the optional account screen; Home never opens this gate.
     pub(crate) fn sign_in_to_play(&mut self) {
         self.owner_screen_open = true;
-        self.start_sign_in();
+        let under_way = self.sign_in.is_some()
+            && !matches!(self.sign_in_state, None | Some(SignInState::Done(_)));
+        if !under_way {
+            self.start_sign_in();
+        }
     }
 
     /// Whether the screen covers the window: no owner, and either Play was refused or the player
