@@ -3266,27 +3266,19 @@ impl Hub {
             pitch: rot.1,
             head_yaw: rot.2,
             on_ground,
-            velocity: [0.0; 3],
-            acceleration_power: None,
-            data: 0,
             meta,
             forced_meta: [0; 4],
-            // The effect swirls go back to none.
+            // What a client still holds goes back to its default: the effect
+            // swirls to none, and the skin parts to 0, every outer layer hidden
+            // (Avatar.DATA_PLAYER_MODE_CUSTOMISATION).
             defaults: vec![
                 (10, serializer::PARTICLES, Value::Particles(Vec::new())),
                 (11, serializer::BOOLEAN, Value::Bool(false)),
+                (16, serializer::BYTE, Value::Byte(0)),
             ],
             equipment,
             attributes,
-            precise: false,
-            vertical_collision: false,
-            horizontal_collision: false,
-            needs_sync: false,
-            sync_position: false,
-            stepped: false,
-            idle: false,
-            bare: false,
-            ..Default::default()
+            ..EntityState::default()
         }
     }
 
@@ -3350,6 +3342,10 @@ impl Hub {
                 state.hidden = self.hidden.get(&g.uuid).copied();
                 stuck_meta(&mut state.meta, &mut state.defaults, g.stuck);
                 frozen_meta(&mut state, g.motion.as_ref().map_or(0, |m| m.ticks_frozen));
+                // Entity.getDeltaMovement: the server copy's, which a glide sends.
+                if let Some(v) = g.motion.as_ref().map(|m| m.velocity) {
+                    state.velocity = [v.x, v.y, v.z];
+                }
                 shoulder_meta(&mut state, g.shoulders);
                 state
             })
@@ -3673,15 +3669,17 @@ impl Hub {
                 }));
             }
         });
-        // AbstractContainerMenu.broadcastChanges for the inventory menu.
+        // AbstractContainerMenu.broadcastChanges for the inventory menu: the
+        // slots are compared where they lie and only the changed ones copied.
         let mut changes = Vec::new();
         for slot in 0..46 {
-            let now = self.guests[i].menu_slot(slot);
-            if now != self.guests[i].menu_sent[slot] {
-                changes.push((slot, now));
+            let now = self.guests[i].menu_slot_ref(slot);
+            if now != self.guests[i].menu_sent[slot].as_ref() {
+                changes.push(slot);
             }
         }
-        for (slot, now) in changes {
+        for slot in changes {
+            let now = self.guests[i].menu_slot(slot);
             let net = self.stack(&now);
             self.guests.update(i, |g| {
                 g.menu_state = (g.menu_state + 1) & 0x7FFF;
@@ -5220,7 +5218,9 @@ mod tests {
     mod effect_meta_tests;
     #[path = "../far_tests.rs"]
     mod far_tests;
+    mod glide_motion_tests;
     mod live_player_limit_tests;
+    mod menu_sync_tests;
     mod ordered_inbox_tests;
     mod pending_move_bound_tests;
     mod pending_move_scope_tests;
