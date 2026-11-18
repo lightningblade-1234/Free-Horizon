@@ -806,7 +806,7 @@ impl Launcher {
                     .absolute()
                     .top(px(9.))
                     .left(px(27.))
-                    .when(!(updating && !open), |d| d.invisible())
+                    .when(!updating || open, |d| d.invisible())
                     .child(ui::dot(Tone::Accent(soft))),
             )
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
