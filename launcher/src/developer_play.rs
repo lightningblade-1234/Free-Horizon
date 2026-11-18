@@ -6,7 +6,7 @@ impl Launcher {
     pub(super) fn handle_offline_game(&mut self, command: std::result::Result<Command, String>) {
         if let Some(tag) = self.starting_client.take() {
             let instance_id = self.starting_instance.take();
-            let mut cmd = match command {
+            let cmd = match command {
                 Ok(cmd) => cmd,
                 Err(error) => {
                     self.client_error = Some(error);
@@ -19,15 +19,9 @@ impl Launcher {
                 }
             };
             // A pack's Play button plays that pack; Play plays the selected instance.
-            let (profile, run) = match self.starting_pack.take() {
-                Some(work) => {
-                    let id = instances::list()
-                        .into_iter()
-                        .find(|i| i.work == work)
-                        .map(|i| i.id);
-                    let applied = horizon_launcher::modpacks::apply_profile(&mut cmd, &work);
-                    (applied, id)
-                }
+            let pack = self.starting_pack.take();
+            let instance = match &pack {
+                Some(work) => instances::list().into_iter().find(|i| &i.work == work),
                 None => {
                     let Some(instance) = instances::list()
                         .into_iter()
@@ -41,41 +35,53 @@ impl Launcher {
                         self.quick_play = None;
                         return;
                     };
-                    (instances::apply(&mut cmd, &instance), Some(instance.id))
+                    Some(instance)
                 }
             };
-            if let Err(e) = profile {
-                self.client_error = Some(e);
-                return;
-            }
+            let run = instance.as_ref().map(|i| i.id.clone());
+            // What follows the profile's own arguments, in the same order: the player's extra
+            // arguments come last, to add to the launcher's or override them.
+            let mut after = std::process::Command::new("");
             if let Some(code) = self.joining.take() {
-                if let Err(e) = backend::join_friend(&mut cmd, &code) {
+                if let Err(e) = backend::join_friend(&mut after, &code) {
                     self.client_error = Some(e);
                 }
             }
             if let Some((flag, value)) = self.quick_play.take() {
-                cmd.arg(flag).arg(value);
+                after.arg(flag).arg(value);
             }
-            if let Err(error) = backend::append_offline_game_args(&mut cmd) {
+            if let Err(error) = backend::append_offline_game_args(&mut after) {
                 self.client_error = Some(error);
                 return;
             }
+            let after: Vec<_> = after.get_args().map(ToOwned::to_owned).collect();
             // Last, around every argument: the instance's pre-launch command,
             // wrapper and variables.
-            let instance = run
-                .as_ref()
-                .and_then(|id| instances::list().into_iter().find(|i| &i.id == id));
             self.client_vars = instance
                 .as_ref()
                 .map(|i| i.vars(cmd.get_program()))
                 .unwrap_or_default();
-            cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
-            backend::strip_session_env(&mut cmd);
-            let launch = instance.map(|i| i.launch).unwrap_or_default();
+            let vars = self.client_vars.clone();
+            let launch = instance
+                .as_ref()
+                .map(|i| i.launch.clone())
+                .unwrap_or_default();
+            // The profile on the launch's thread: a pack's carried mods are read whole for it.
+            let profile = move |cmd: &mut std::process::Command| {
+                match (&pack, &instance) {
+                    (Some(work), _) => horizon_launcher::modpacks::apply_profile(cmd, work)?,
+                    (None, Some(instance)) => instances::apply(cmd, instance)?,
+                    (None, None) => {}
+                }
+                cmd.args(after);
+                cmd.envs(vars.iter().map(|(k, v)| (k, v)));
+                backend::strip_session_env(cmd);
+                Ok(())
+            };
             self.starting_client = Some(tag);
             // The jar phase keeps the row of the started instance on Starting.
             self.starting_instance = run.clone();
-            jar_launch::client(cmd, launch, run, self.tx.clone());
+            jar_launch::client(cmd, profile, launch, run, self.tx.clone());
         }
     }
 }
