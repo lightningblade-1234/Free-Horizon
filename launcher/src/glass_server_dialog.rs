@@ -925,10 +925,25 @@ mod tests {
 #[cfg(all(test, debug_assertions))]
 mod foot_layout {
     use super::*;
-    use gpui::TestAppContext;
+    use gpui::{canvas, Bounds, Pixels, TestAppContext};
+    use std::{cell::Cell, rc::Rc};
+
+    type MeasuredBounds = Rc<Cell<Option<Bounds<Pixels>>>>;
+
+    // GPUI's debug selectors aren't recorded in release builds. An out-of-flow canvas
+    // measures the rendered box in either profile without changing the foot's layout.
+    fn measure(element: Div, bounds: MeasuredBounds) -> Div {
+        element.relative().child(
+            canvas(move |area, _, _| bounds.set(Some(area)), |_, _, _, _| {})
+                .absolute()
+                .size_full(),
+        )
+    }
 
     struct Foot {
         message: SharedString,
+        status_bounds: MeasuredBounds,
+        foot_bounds: MeasuredBounds,
     }
 
     impl Render for Foot {
@@ -938,11 +953,17 @@ mod foot_layout {
             let agree = div().flex_none().w(px(220.)).h(px(22.));
             let read = div().flex_none().w(px(40.)).h(px(18.));
             let buttons = div().flex_none().w(px(200.)).h(px(48.));
-            div().w(px(760.)).child(create_foot_row(
-                agree,
-                read,
-                Some(foot_status(self.message.clone(), ui::danger())),
-                buttons,
+            div().w(px(760.)).child(measure(
+                create_foot_row(
+                    agree,
+                    read,
+                    Some(measure(
+                        foot_status(self.message.clone(), ui::danger()),
+                        self.status_bounds.clone(),
+                    )),
+                    buttons,
+                ),
+                self.foot_bounds.clone(),
             ))
         }
     }
@@ -951,14 +972,20 @@ mod foot_layout {
     async fn a_long_message_wraps_in_two_lines_on_its_own_foot_row(cx: &mut TestAppContext) {
         // The reporter's message: a nightly's tag alone is a word longer than the foot's room.
         let message: SharedString = "Horizon nightly-2026-11-13-9f42064 isn't prepared yet: press Prepare on the Play page (it uses your own Minecraft 26.3)".into();
-        let (view, cx) = cx.add_window_view(|_, _| Foot { message });
+        let status_bounds = MeasuredBounds::default();
+        let foot_bounds = MeasuredBounds::default();
+        let (view, cx) = cx.add_window_view(|_, _| Foot {
+            message,
+            status_bounds: status_bounds.clone(),
+            foot_bounds: foot_bounds.clone(),
+        });
         cx.run_until_parked();
-        let status = cx.debug_bounds("create-foot-status").unwrap();
+        let status = status_bounds.get().unwrap();
         // The message spans the foot's 760 px, less the 36 px sides.
         assert_eq!(status.size.width, px(688.), "the message owns the width");
         // Two lines at 13 px with an 18 px line height: not one line per word.
         assert_eq!(status.size.height, px(36.), "clamped to two lines");
-        let row = cx.debug_bounds("create-foot").unwrap();
+        let row = foot_bounds.get().unwrap();
         // 20 + 20 padding, the message's 36, the 8 px gap and the buttons' 48.
         assert_eq!(
             row.size.height,
@@ -971,11 +998,8 @@ mod foot_layout {
             cx.notify();
         });
         cx.run_until_parked();
-        let status = cx.debug_bounds("create-foot-status").unwrap();
+        let status = status_bounds.get().unwrap();
         assert_eq!(status.size.height, px(18.));
-        assert_eq!(
-            cx.debug_bounds("create-foot").unwrap().size.height,
-            px(114.)
-        );
+        assert_eq!(foot_bounds.get().unwrap().size.height, px(114.));
     }
 }
