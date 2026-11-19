@@ -50,6 +50,7 @@ jobs:
         with:
           workspaces: launcher
           shared-key: offline-launcher-windows-x64
+          cache-on-failure: true
       - name: Check the public tree
         run: python tools/check_public_tree.py
       - name: Fresh test and launcher directories
@@ -115,6 +116,7 @@ jobs:
         with:
           workspaces: launcher
           shared-key: offline-launcher-linux-x86_64
+          cache-on-failure: true
       - name: Linux libraries GPUI links to
         run: |
           sudo apt-get update

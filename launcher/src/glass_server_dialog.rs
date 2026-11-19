@@ -923,7 +923,7 @@ mod tests {
 #[cfg(test)]
 mod foot_layout {
     use super::*;
-    use gpui::{Bounds, Pixels, TestAppContext};
+    use gpui::{canvas, Bounds, Pixels, TestAppContext};
     use std::{cell::Cell, rc::Rc};
 
     type MeasuredBounds = Rc<Cell<Option<Bounds<Pixels>>>>;
