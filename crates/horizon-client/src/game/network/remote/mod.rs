@@ -4148,7 +4148,7 @@ impl Game<'_> {
                     );
                 } else if let Some(at) = at {
                     let mut r = horizon_client::random_source::create();
-                    let pitch = ((r.next_float() - r.next_float()) * 0.7 + 1.0) * 2.0;
+                    let pitch = (r.next_float() - r.next_float()) * 1.4 + 2.0;
                     self.audio
                         .play("minecraft:entity.item.pickup", Some(at), 0.2, pitch);
                 }
@@ -5704,14 +5704,16 @@ impl Game<'_> {
                         (None, Some(id)) => Some(horizon_client::skins::NameOrId::Id(id)),
                         _ => None,
                     });
-                    key.and_then(|key| match self.skin_profiles.borrow_mut().state(&key) {
-                        horizon_client::skins::Resolve::Done(Some(profile)) => {
-                            profile.textures().map(|(value, signature)| {
-                                horizon_client::skins::unpack_known(&value, signature)
-                            })
-                        }
-                        _ => None,
-                    })
+                    key.and_then(
+                        |key| match self.skin_profiles.borrow_mut().state_for_game(&key) {
+                            horizon_client::skins::Resolve::Done(Some(profile)) => {
+                                profile.textures().map(|(value, signature)| {
+                                    horizon_client::skins::unpack_known(&value, signature)
+                                })
+                            }
+                            _ => None,
+                        },
+                    )
                     .unwrap_or_default()
                 };
                 (i, textures)
