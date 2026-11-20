@@ -2281,7 +2281,6 @@ fn java(
         compiler,
         games,
         manifest,
-        log,
         local_only,
         &|component, runtime| {
             mojang::java_runtime_http(
@@ -2301,7 +2300,6 @@ fn java_with_download(
     compiler: bool,
     games: &[PathBuf],
     manifest: &Path,
-    log: &dyn Fn(String),
     local_only: bool,
     download: &dyn Fn(&str, &Path) -> Result<PathBuf, String>,
 ) -> Result<PathBuf, String> {
@@ -2363,7 +2361,6 @@ fn java_with_fetch(
         compiler,
         games,
         manifest,
-        log,
         local_only,
         &|component, runtime| {
             mojang::java_runtime(
